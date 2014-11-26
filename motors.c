@@ -65,8 +65,8 @@
 #define PE2_M2B			GPIO_PIN_2
 #define PE3_M3A			GPIO_PIN_3
 #define PA5_M3B			GPIO_PIN_5
-#define PA6_M4A			GPIO_PIN_6
-#define PA7_M4B			GPIO_PIN_7
+#define PB4_M4A			GPIO_PIN_4
+#define PB5_M4B			GPIO_PIN_5
 // SYSCTL Defines
 #define SYSCTL_MOTORS 	SYSCTL_PERIPH_PWM1
 #define SYSCTL_SERVOS 	SYSCTL_PERIPH_PWM0
@@ -127,9 +127,10 @@ void Robot_PWM_init(void)
 /*
  * Initialize Control Pins
  */
-	GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, PD2_M1A | PD3_M2A);
+	GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B);
 	GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A);
-	GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, PA5_M3B | PA6_M4A | PA7_M4B);
+	GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, PA5_M3B);
+	GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B);
 }
 //stoprobot
 //motorsfw
