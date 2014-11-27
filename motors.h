@@ -189,7 +189,7 @@ void cw_motors(uint8_t duty);
 //! \return none
 //
 //*****************************************************************************
-void ccw_motors(uint8_t duty)
+void ccw_motors(uint8_t duty);
 //*****************************************************************************
 //
 //! Counter clockwise turn
