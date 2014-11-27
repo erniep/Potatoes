@@ -91,13 +91,14 @@
  * Function prototypes
  */
 //*****************************************************************************
+void Robot_PWM_init(void);
+//*****************************************************************************
 //
-//! Moves the robot to the right
+//! Initializes the Robot
 //!
-//! \param ui8duty is the intended duty cycle
+//! \param none
 //!
-//! Given a duty cycle, this function moves the robot via mecanum wheels,
-//! transationally right. This is done via force vectors.
+//! This initializes the robot to motors with PWM and servos
 //!
 //! \return none
 //
@@ -105,7 +106,7 @@
 void tr_motors(uint8_t duty);
 //*****************************************************************************
 //
-//! Moves the robot to the left
+//! Moves the robot to the right
 //!
 //! \param ui8duty is the intended duty cycle
 //!
@@ -118,6 +119,19 @@ void tr_motors(uint8_t duty);
 void tl_motors(uint8_t duty);
 //*****************************************************************************
 //
+//! Moves the robot to the left
+//!
+//! \param ui8duty is the intended duty cycle
+//!
+//! Given a duty cycle, this function moves the robot via mecanum wheels,
+//! transationally right. This is done via force vectors.
+//!
+//! \return none
+//
+//*****************************************************************************
+void rv_motors(uint8_t duty);
+//*****************************************************************************
+//
 //! Moves the robot in the reverse direction
 //!
 //! \param ui8duty is the intended duty cycle
@@ -127,7 +141,7 @@ void tl_motors(uint8_t duty);
 //! \return none
 //
 //*****************************************************************************
-void rv_motors(uint8_t duty);
+void fw_motors(uint8_t duty);
 //*****************************************************************************
 //
 //! Moves the robot in the foward direction
@@ -139,19 +153,19 @@ void rv_motors(uint8_t duty);
 //! \return none
 //
 //*****************************************************************************
-void fw_motors(uint8_t duty);
+void coast_motors(uint8_t duty);
 //*****************************************************************************
 //
 //! Coast robots
 //!
-//! \param none
+//! \param ui8duty is the intended duty cycle
 //!
 //! This function allows the motors to coast by turning off the PWM signal
 //!
 //! \return none
 //
 //*****************************************************************************
-void coast_motors(uint8_t duty);
+void stop_motors(uint8_t duty);
 //*****************************************************************************
 //
 //! Stop_motors
@@ -163,5 +177,29 @@ void coast_motors(uint8_t duty);
 //! \return none
 //
 //*****************************************************************************
-void stop_motors(uint8_t duty);
+void cw_motors(uint8_t duty);
+//*****************************************************************************
+//
+//! Turn Clockwise
+//!
+//! \param ui8duty is the intended duty cycle
+//!
+//! This function turns the robot clockwise
+//!
+//! \return none
+//
+//*****************************************************************************
+void ccw_motors(uint8_t duty)
+//*****************************************************************************
+//
+//! Counter clockwise turn
+//!
+//! \param ui8duty is the intended duty cycle
+//!
+//! This function turns the robot counter clockwise
+//!
+//! \return none
+//
+//*****************************************************************************
+
 #endif /* MOTORS_H_ */

@@ -7,9 +7,9 @@
 #include "motors.h"
 void Robot_PWM_init(void)
 {
-/*
- * Configure PWM Module
- */
+//
+// Configure PWM Module
+//
 	// Set PWM clock divider to 1
 	SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 	// Turn on PWM0, and PWM1
@@ -37,18 +37,18 @@ void Robot_PWM_init(void)
 	// Calculate Period for Servo
 	period = SysCtlClockGet() / swfreq_servos;
 	PWMGenPeriodSet(PWM_SERVO_BASE, PWM_GEN_SERVO, period);
-/*
- * Set initial duty cycle to 0
- */
+//
+// Set initial duty cycle to 0
+//
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, 0);
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, 0);
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, 0);
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, 0);
 	PWMPulseWidthSet(PWM_SERVO_BASE, SERVO1_OUT, 0);
 	PWMPulseWidthSet(PWM_SERVO_BASE, SERVO2_OUT, 0);
-/*
- * Enable PWM output
- */
+//
+// Enable PWM output
+//
 	PWMOutputState(PWM_MOTOR_BASE, M1_OUT_BIT, true);
 	PWMOutputState(PWM_MOTOR_BASE, M2_OUT_BIT, true);
 	PWMOutputState(PWM_MOTOR_BASE, M3_OUT_BIT, true);
@@ -58,9 +58,9 @@ void Robot_PWM_init(void)
 	PWMGenEnable(PWM_MOTOR_BASE, PWM_GEN_BOTM);
 	PWMGenEnable(PWM_MOTOR_BASE, PWM_GEN_TOPM);
 	PWMGenEnable(PWM_SERVO_BASE, PWM_GEN_SERVO);
-/*
- * Initialize Control Pins
- */
+//
+// Initialize Control Pins
+//
 	GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B);
 	GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A);
 	GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, PA5_M3B);
@@ -84,6 +84,34 @@ void coast_motors(uint8_t duty)
 }
 void fw_motors(uint8_t duty)
 {
+	// Set periods on Motors
+	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((duty * period)/100));
+
+	// Control Pins
+	//M1:FWD, M2:FWD, M3:FWD, M4:FWD
+	//M1:FWD, 1A hi, 1B lo
+	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD2_M1A);
+	//M2:REV, 2A hi, 2B low, M3:FWD, 3A hi
+	GPIOPinWrite(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A, PE1_M2A | PE3_M3A);
+	//M3:FWD, 3B low
+	GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, 0);
+	//M4:REV, 4A hi, 4B lo
+	GPIOPinWrite(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B, PB4_M4A);
+}
+void cw_motors(uint8_t duty)
+{
+	// Set periods on Motors
+	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((duty * period)/100));
+
+	// Control Pins
 	//M1:FWD, M2:REV, M3:FWD, M4:REV
 	//M1:FWD, 1A hi, 1B lo
 	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD2_M1A);
@@ -94,13 +122,66 @@ void fw_motors(uint8_t duty)
 	//M4:REV, 4A lo, 4B hi
 	GPIOPinWrite(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B, PB5_M4B);
 }
-void rv_motors(uint8_t duty)
+void ccw_motors(uint8_t duty)
 {
 
+	// Set periods on Motors
+	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((duty * period)/100));
+
+	// Control Pins
+	//M1:REV, M2:FWD, M3:REV, M4:FWD
+	//M1:REV, 1A lo, 1B hi
+	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD3_M1B);
+	//M2:FWD, 2A hi, 2B lo, M3:REV, 3A lo
+	GPIOPinWrite(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A, PE1_M2A);
+	//M3:REV, 3B hi
+	GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, PA5_M3B);
+	//M4:FWD, 4A hi, 4B lo
+	GPIOPinWrite(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B, PB4_M4A);
+}
+void rv_motors(uint8_t duty)
+{
+	// Set periods on Motors
+	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((duty * period)/100));
+
+	// Control Pins
+	//M1:REV, M2:REV, M3:REV, M4:REV
+	//M1:REV, 1A lo, 1B hi
+	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD3_M1B);
+	//M2:REV, 2A lo, 2B hi, M3:REV, 3A lo
+	GPIOPinWrite(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A, PE2_M2B);
+	//M3:REV, 3B hi
+	GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, PA5_M3B);
+	//M4:REV, 4A lo, 4B hi
+	GPIOPinWrite(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B, PB5_M4B);
 }
 void tl_motors(uint8_t duty)
 {
+	// Set periods on Motors
+	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((duty * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((duty * period)/100));
 
+	// Control Pins
+	//M1:REV, M2:FWD, M3:FWD, M4:REV
+	//M1:REV, 1A lo, 1B hi
+	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD3_M1B);
+	//M2:FWD, 2A hi, 2B lo, M3:FWD, 3A hi
+	GPIOPinWrite(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A, PE1_M2A | PE3_M3A);
+	//M3:FWD, 3B lo
+	GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, 0);
+	//M4:REV, 4A lo, 4B hi
+	GPIOPinWrite(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B, PB5_M4B);
 }
 void tr_motors(uint8_t duty)
 {
@@ -110,6 +191,8 @@ void tr_motors(uint8_t duty)
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((duty * period)/100));
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((duty * period)/100));
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((duty * period)/100));
+
+	// Control Pins
 	//M1:FWD, M2:REV, M3:REV, M4:FWD
 	//M1:FWD, 1A hi, 1B lo
 	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD2_M1A);
