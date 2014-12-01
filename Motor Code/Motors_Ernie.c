@@ -118,17 +118,18 @@ void motorAll(int motor1, int motor2, int motor3, int motor4) {
 			PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, 0);
 		case 0:
 			// M3: STOP, 3A lo, 3B lo
-			GPIOPinWrite(GPIO_PORTA_BASE, PE3_M3A | PA5_M3B, 0);
+			GPIOPinWrite(GPIO_PORTE_BASE, PE3_M3A, 0);
+			GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, 0);
 		default:
 			if (motor3 < 0) {
 				motor3dir = -1;
-				// M3: REV, 3A hi, 3B low
-				GPIOPinWrite(GPIO_PORTE_BASE, PE3_M3A, PE3_M3A);
-				GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, 0);
-			} else {
-				// M3: FWD, 3A hi, 3B low
+				// M3: REV, 3A lo, 3B hi
 				GPIOPinWrite(GPIO_PORTE_BASE, PE3_M3A, 0);
 				GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, PA5_M3B);
+			} else {
+				// M3: FWD, 3A hi, 3B low
+				GPIOPinWrite(GPIO_PORTE_BASE, PE3_M3A, PE3_M3A);
+				GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, 0);
 			}
 	}
 
