@@ -248,6 +248,7 @@ int naviSyst::moveCell(char nextDir){
 			curr = curr->getAdj('E');
 			currFace = 'E';
 		}	
+		//Hi Ernie
 		else if(nextDir == 'S'){
 			faceRight();
 			rightRotates++;
