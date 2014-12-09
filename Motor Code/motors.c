@@ -18,25 +18,29 @@ void Robot_PWM_init(void)
 	// Set PWM output pins to type PWM
 	GPIOPinTypePWM(GPIO_BASE_TOPM, GPIO_M1 | GPIO_M2);
 	GPIOPinTypePWM(GPIO_BASE_BOTM, GPIO_M3 |GPIO_M4);
-	GPIOPinTypePWM(GPIO_BASE_SERVO, GPIO_SERVO1 | GPIO_SERVO2);
+	GPIOPinTypePWM(GPIO_BASE_PAN_SERVO,  GPIO_TILT_SERVO);
+	GPIOPinTypePWM(GPIO_BASE_TILT_SERVO,  GPIO_PAN_SERVO);
 	// GPIO Pin configure
 	GPIOPinConfigure(M1);
 	GPIOPinConfigure(M2);
 	GPIOPinConfigure(M3);
 	GPIOPinConfigure(M4);
-	GPIOPinConfigure(SERVO1);
-	GPIOPinConfigure(SERVO2);
+	GPIOPinConfigure(PAN_SERVO);
+	GPIOPinConfigure(TILT_SERVO);
 	// Configure PWM Generators
 	PWMGenConfigure(PWM_MOTOR_BASE, PWM_GEN_BOTM, PWM_GEN_MODE_UP_DOWN);
 	PWMGenConfigure(PWM_MOTOR_BASE, PWM_GEN_TOPM, PWM_GEN_MODE_UP_DOWN);
-	PWMGenConfigure(PWM_SERVO_BASE, PWM_GEN_SERVO, PWM_GEN_MODE_UP_DOWN);
+	PWMGenConfigure(PWM_SERVO_BASE, PWM_GEN_TILT_SERVO, PWM_GEN_MODE_UP_DOWN);
+	PWMGenConfigure(PWM_SERVO_BASE, PWM_GEN_PAN_SERVO, PWM_GEN_MODE_UP_DOWN);
 	// Calculate Period for Motors
-	uint32_t period = SysCtlClockGet() / swfreq_motors;
+	uint32_t period = SysCtlClockGet() / SWFREQ_MOTORS;
 	PWMGenPeriodSet(PWM_MOTOR_BASE, PWM_GEN_BOTM, period);
 	PWMGenPeriodSet(PWM_MOTOR_BASE, PWM_GEN_TOPM, period);
 	// Calculate Period for Servo
-	period = SysCtlClockGet() / swfreq_servos;
-	PWMGenPeriodSet(PWM_SERVO_BASE, PWM_GEN_SERVO, period);
+	period = SysCtlClockGet() / SWFREQ_ANA_SERVO;
+	PWMGenPeriodSet(PWM_SERVO_BASE, PWM_GEN_TILT_SERVO, period);
+	period = SysCtlClockGet() / SWFREQ_DIGI_SERVO;
+	PWMGenPeriodSet(PWM_SERVO_BASE, PWM_GEN_PAN_SERVO, period);
 //
 // Set initial duty cycle to 0
 //
@@ -44,8 +48,8 @@ void Robot_PWM_init(void)
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, 0);
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, 0);
 	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, 0);
-	PWMPulseWidthSet(PWM_SERVO_BASE, SERVO1_OUT, 0);
-	PWMPulseWidthSet(PWM_SERVO_BASE, SERVO2_OUT, 0);
+	PWMPulseWidthSet(PWM_SERVO_BASE, PAN_SERVO_OUT, 0);
+	PWMPulseWidthSet(PWM_SERVO_BASE, TILT_SERVO_OUT, 0);
 //
 // Enable PWM output
 //
@@ -53,11 +57,12 @@ void Robot_PWM_init(void)
 	PWMOutputState(PWM_MOTOR_BASE, M2_OUT_BIT, true);
 	PWMOutputState(PWM_MOTOR_BASE, M3_OUT_BIT, true);
 	PWMOutputState(PWM_MOTOR_BASE, M4_OUT_BIT, true);
-	PWMOutputState(PWM_SERVO_BASE, SERVO1_OUT_BIT, true);
-	PWMOutputState(PWM_SERVO_BASE, SERVO2_OUT_BIT, true);
+	PWMOutputState(PWM_SERVO_BASE, PAN_SERVO_OUT_BIT, true);
+	PWMOutputState(PWM_SERVO_BASE, TILT_SERVO_OUT_BIT, true);
 	PWMGenEnable(PWM_MOTOR_BASE, PWM_GEN_BOTM);
 	PWMGenEnable(PWM_MOTOR_BASE, PWM_GEN_TOPM);
-	PWMGenEnable(PWM_SERVO_BASE, PWM_GEN_SERVO);
+	PWMGenEnable(PWM_SERVO_BASE, PWM_GEN_TILT_SERVO);
+	PWMGenEnable(PWM_SERVO_BASE, PWM_GEN_PAN_SERVO);
 //
 // Initialize Control Pins
 //
@@ -203,5 +208,35 @@ void tr_motors(uint8_t duty)
 	//M4:FWD, 4A hi, 4B lo
 	GPIOPinWrite(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B, PB4_M4A);
 }
+void pan_servo_DC(uint8_t duty)
+{
+	// Get period
+	uint32_t period = PWMGenPeriodGet(PWM_SERVO_BASE, PWM_GEN_PAN_SERVO);
+	PWMPulseWidthSet(PWM_SERVO_BASE, PAN_SERVO_OUT, ((duty * period)/100));
+}
+void tilt_servo_DC(uint8_t duty)
+{
+	// Get period
+	uint32_t period = PWMGenPeriodGet(PWM_SERVO_BASE, PWM_GEN_TILT_SERVO);
+	PWMPulseWidthSet(PWM_SERVO_BASE, TILT_SERVO_OUT, ((duty * period)/100));
+}
+void pan_lt(void)
+{
+	// Get period
+	uint32_t period = PWMGenPeriodGet(PWM_SERVO_BASE, PWM_GEN_PAN_SERVO);
+	PWMPulseWidthSet(PWM_SERVO_BASE, PAN_SERVO_OUT, ((duty_lt * period)/100));
+}
+void pan_fwd(void)
+{
+	// Get period
+	uint32_t period = PWMGenPeriodGet(PWM_SERVO_BASE, PWM_GEN_PAN_SERVO);
+	PWMPulseWidthSet(PWM_SERVO_BASE, PAN_SERVO_OUT, ((duty_fwd * period)/100));
+}
 
+void pan_rt(void)
+{
+	// Get period
+	uint32_t period = PWMGenPeriodGet(PWM_SERVO_BASE, PWM_GEN_PAN_SERVO);
+	PWMPulseWidthSet(PWM_SERVO_BASE, PAN_SERVO_OUT, ((duty_rt * period)/100));
+}
 
