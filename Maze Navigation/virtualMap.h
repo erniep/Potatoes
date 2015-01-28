@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <cstdlib>
-#include <string>
+#include <string.h>
 #include <stack>
 #include "unitCell.h" 
 
@@ -12,7 +12,8 @@ private:
 	unitCell* start;
 	unitCell* fin;
 	unitCell* curr;
-	int currNum;
+	int currNum; // Current cell that the robot is in
+	int totalCells; // Total number of cells in the virtual map(26, 37, and 49 for 5x5, 6x6, 7x7)
 	unitCell c1, c2, c3, c4, c5, c6, c7, //Declare each cell
 			 c8, c9, c10, c11, c12, c13, c14,
 			 c15, c16, c17, c18, c19, c20, c21,
@@ -24,13 +25,16 @@ private:
 public:
 
 	virtualMap(); // Default map assumes the map size is 5x5
-	virtualMap(string mapSize); //Given a map size, set the starting location and ending locations of the robot. [INCOMPLETE]
+	virtualMap(string mapSize); //Given a map size, set the starting location and ending locations of the robot. [MAY JUST ABANDON]
+	void set6x6(); //Change a map into 6x6 settings
+	void set7x7(); //Change a map into 7x7 settings
 	
 	unitCell* getStart();
 	unitCell* getFin();
 	unitCell* getCurr();
 	unitCell* getCell(int n); // Given a number, return the address of the unitCell that has that number
 	int getCurrNum();
+	int getTotalCells();
 	// bool getCurrCellScan();
 	// bool getCurrWall();
 	// bool getCurrEgg();
@@ -42,21 +46,24 @@ public:
 	void setStart(unitCell* ns);
 	void setFin(unitCell* nf);
 	void setCurr(unitCell* nc); //Set new current cell and update currNum as well
+	void setTotalCells(int ntc);
 	void move(int crdnlDir); //Move a certain direction
 	void move(char crdnlDir);
-	void initMap(); // Create the 7x7 map using the default unitCell
-	
+	void initMap(); // Create the 7x7 map using the default unitCell	
+
 };
+
 
 virtualMap::virtualMap(){
 	initMap();
+	totalCells = 26; // 5x5 + 1 starting cell
 	start = &c48;
 	curr = &c48;
 	fin = &c9;
 }
 
 virtualMap::virtualMap(string mapSize){ 
-	if(strcmp(&mapSize[0], "6x6") == 0){
+	/*if(strcmp(&mapSize[0], "6x6") == 0){
 		cout << "(virtualMap::virtualMap) Created 6x6" << endl;
 		initMap();
 		start = &c48;
@@ -70,13 +77,28 @@ virtualMap::virtualMap(string mapSize){
 		curr = &c49;
 		fin = &c1;
 	}
-	else{
+	else{*/
 		cout << "(virtualMap::virtualMap) Created 5x5" << endl;
 		initMap();
 		start = &c48;
 		curr = &c48;
 		fin = &c9;
-	}
+	//}
+}
+
+void virtualMap::set6x6() {
+		cout << "Changed to 6x6" << endl;
+		totalCells = 37; // 6x6 + 1 starting cell
+		start = &c48;
+		curr = &c48;
+		fin = &c1;
+}
+void virtualMap::set7x7() {
+		cout << "Changed to 7x7" << endl;
+		totalCells = 49;
+		start = &c49;
+		curr = &c49;
+		fin = &c1;
 }
 
 unitCell* virtualMap::getStart(){
@@ -250,6 +272,10 @@ int virtualMap::getCurrNum(){
 	return curr->getNum();
 }
 
+int virtualMap::getTotalCells(){
+	return totalCells;
+}
+
 void virtualMap::setStart(unitCell* ns){
 	start = ns;
 }
@@ -261,6 +287,10 @@ void virtualMap::setFin(unitCell* nf){
 void virtualMap::setCurr(unitCell* nc){
 	curr = nc;
 	currNum = curr->getNum();
+}
+
+void virtualMap::setTotalCells(int ntc){
+	totalCells = ntc;
 }
 
 void virtualMap::move(int crdnlDir){

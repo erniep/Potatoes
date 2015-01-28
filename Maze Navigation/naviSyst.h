@@ -1,6 +1,35 @@
 #include "virtualMap.h"
 #include <queue>
 #include <stack>
+#include <deque>
+#include <list>
+//#include <wiringPi.h>
+//#include <wiringSerial.h>
+
+/*January 24th, 2015: 
+-Fixed revisitCell function. 
+-Changed wallSensorsSim to Ernie's version.
+-activeMap can now be changed with setActiveMap function
+*/
+
+//#define MAZE5
+// #define MAZE6
+//define MAZE7
+
+// #ifdef MAZE5
+// #define TOTALCELLS 26
+
+// #endif
+
+// #ifdef MAZE6
+// #define TOTALCELLS 37
+
+// #endif
+
+// #ifdef MAZE7
+// #define TOTALCELLS 49
+
+// #endif
 
 class naviSyst{
 
@@ -15,7 +44,7 @@ private:
 	stack<int> critPath; // Cell# order of critical path
 	stack<int> travHist; // Travel history of robot. Used to retrace steps
 	stack<int> revisit; // Stack of cells that need to be revisited because there are still paths to explore there
-	queue<int> eggLocs; // Cell numbers of cells that contain easter eggs
+	queue<int> eggLocs; // Cell numbers of cells that contain Easter eggs
 
 	//[Sensor variables]
 	bool wallReadings[4]; // Values returned by the wall sensors for the current cell. [0], [1], and [2] correspond to left, front, and right sensors. There is a fourth index in case a fourth sensor is added to the south of the robot. Since the wall sensors do not return values relative to the NESW convention used in this code, this function must use the robot's current face to translate these sensor readings into the NESW convention.
@@ -36,6 +65,7 @@ public:
 	unitCell* getCurrCell();
 	int peekCritPath();
 	int popCritPath();
+	int printCritPath();
 	int peekTravHist();
 	int popTravHist();
 	int printTravHist();
@@ -53,7 +83,7 @@ public:
 	void pushTravHist(int cellNum);
 	void pushRevisit(int cellNum);
 	void pushEggLocs(int eggLoc);
-	void changeMapSize(); // Gets the map matching the next round of the competition. Also changes the totalCells variable and resets the cellsVisited variable.
+	void setActiveMap(string mapSize); // Set the active map of the robot
 	
 	//[Movement functions]
 	int traverseMap(); // This is the main function that actually navigates throughout the map.
@@ -63,6 +93,7 @@ public:
 	void moveCellFast(char nextDir); // Move to an adjacent cell using strafing.
 	void revisitCell(); // Travel to a cell that must be revisited. Intended to be called after the getNextPath function returns 'X'
 	void moveToFin(); // Travel to the end of the maze after all the cells have been visited.
+	void moveToCell(int returnCell);
 	int forward(); // Move forward until the tivaC returns a flag saying that the robot is in a new cell.
 	int back();
 	int strafeLeft();
@@ -73,7 +104,7 @@ public:
 	
 	//[Unit cell check functions]
 	void callWallSensors(); //Function to call the wall sensors. Updates the wallReadings array. This function assumes that the direction not covered by the wall sensors has no wall.
-	void callWallSensorsSim(); //Dummy function to call the wall sensors. Directly updates the current cell's walls
+	void callWallSensorsSim(); //Dummy function to call the wall sensors. Directly updates the current cell's walls. In this version, this uses Ernie's callWallSensorsSim code
 	void callRPiCam(); // Dummy function to call the raspberry pi camera.
 	int firstCellProtocol(); // Information retrieval function for the first cell, which has a few differences from other cells in the maze. This function must be called first to initialize the maze navigation algorithm. Assuming the robot is pointed north at the initial cell, this function ensures that the wall without a distance sensor is recorded as a wall in the virtual map. The wallScan() function assumes that the wall without a distance sensor is an open path, since it's assumed the robot entered the cell from there.
 	void scanWalls(); // Checks for walls in the current cell and update the virtual map to reflect the new information.
@@ -86,10 +117,12 @@ naviSyst::naviSyst(){
 	leftRotates = 0;
 	rightRotates = 0;
 	aboutFaceRotates = 0;
-	map6x6 = virtualMap("6x6");
-	map7x7 = virtualMap("7x7");
-	activeMap = &map5x5;
-	totalCells = 26; // Initially assume the first round. Total = 5x5 cells from map + starting cell
+	map6x6.set6x6();
+	map7x7.set7x7();
+	//activeMap = &map5x5;
+	//activeMap = &map6x6;
+	activeMap = &map6x6;	
+	totalCells = activeMap->getTotalCells(); // Initially assume the first round. Total = 5x5 cells from map + starting cell
 	cellsVisited = 0; // Number of unique cells visited
 	currFace = 'N'; // Default face of the robot is north
 }
@@ -115,6 +148,86 @@ unitCell* naviSyst::getCurrCell(){
 	return c;
 }
 
+int naviSyst::printCritPath(){
+
+	queue<int> revisitRoute; // Queue used to travel to the cell that must be revisited
+	list<int> routeToOpt; // Queue that must be optimized
+	stack<int> temp; // Stack used to restore the travelHist stack
+
+	 temp.push(popTravHist()); // Top of the travHist stack is the current node, so we don't want to include it in the revisitRoute queue
+	// cout << "(naviSyst::printCritPath) Travel history: " << endl; 
+	// printTravHist();
+	int travHistTop = peekTravHist();
+	while(travHist.empty() == false){ // Push the cells that lead to the destination onto the routeToOpt list
+		routeToOpt.push_back(peekTravHist());
+		temp.push(popTravHist());
+	}	
+	
+	while(!temp.empty()){ //Restore the travel history stack
+		pushTravHist(temp.top());
+		temp.pop();
+	}
+	
+	//Begin Looping Route Elimination Algorithm (LREA) on the routeToOpt list
+	queue<int> routeToOptRev; //aka RTOR, used to check for loops against the top value of the CFL. I want to iterate through the routeToOpt list in reverse because I want the longest loop. (e.g., if the CFL contains 9 (top), 16, 17, 18, 17, 16 (bottom), then the longest loop is 16, 17, 18, 17, 16, not 16, 17, 16).
+	stack<int> checkForLoop; // aka CFL. This stack contains values that must be checked for loops (e.g., if the CFL contains 9 (top), 16, 17, 18, 17, 16 (bottom), then 16 is a cell where a loop begins)
+	queue<int> restoreRTOR; // Used to restore the RTOR so we can iterate through it again through each value of the CFL stack that needs to be checked.
+	int cfl; // Current top value of the CFL that is being checked to see if it is the start of a redundant loop.
+	
+	//LREA Step 1: Initialize RTOR and CFL 
+	while(routeToOpt.empty() == false){ // The RTOR list must contain the contents of routeToOpt in reverse. I know I could have just accessed the last element of routeToOpt to accomplish the same thing, but it's easier for me to handle this algorithm this way
+		routeToOptRev.push(routeToOpt.back());
+		checkForLoop.push(routeToOpt.back());
+		routeToOpt.pop_back();
+	}
+	checkForLoop.push(getCurrNum()); // Need to have the current occupied cell in the CFL stack because we want to check loops that may return to the current cell
+	
+	// Continue the LREA until the checkForLoop stack is empty, i.e., all possible values loops have been checked
+	while(checkForLoop.empty() == false){
+		cfl = checkForLoop.top();
+		//LREA Step 2: Check front value of CFL against all values of RTOR
+		while(routeToOptRev.empty() == false){
+			//LREA Step 3: If the current front value in the RTOR does not match cfl, then store the non-matching value in the restoreRTOR stack 
+			if(cfl != routeToOptRev.front()){
+					restoreRTOR.push(routeToOptRev.front());
+					routeToOptRev.pop();
+			}
+			//LREA Step 4a: If the current front value in the RTOR matches cfl, then save the value onto the revisitRoute
+			else if(cfl == routeToOptRev.front()){
+				revisitRoute.push(cfl);
+				//LREA Step 4b: If the RTOR is empty after the matching cfl value, then no loop actually exists. Must verify that a loop actually exists to get rid of it.
+				routeToOptRev.pop();
+				if(routeToOptRev.empty() == false){
+					//LREA Step 4c: If the RTOR is not empty after the matching cfl value, then discard the rest of the contents, since the remaining values in the RTOR are the redundant loop.
+					while(routeToOptRev.empty() == false){
+						routeToOptRev.pop();
+					}
+					//LREA Step 4d: Since a loop is found, the CFL must be popped to omit iterating through the loop. Pop the CFL stack until the top value is repeated. Pop once more so the value right after the repeated one will be checked during the next iteration of the LREA.
+					checkForLoop.pop();
+					while(checkForLoop.top() != cfl){
+						checkForLoop.pop();
+					}
+				}
+			}
+		}
+		//LREA Step 4e: Restore the RTOR
+		while(restoreRTOR.empty() == false){
+			routeToOptRev.push(restoreRTOR.front());
+			restoreRTOR.pop();
+		}
+		//LREA Step 5: Pop the checkForLoop stack to ready the next value to be checked
+		checkForLoop.pop();	
+	}
+	
+	//Print out critical path
+	cout << "(printCritPath)" << endl; 
+	while(revisitRoute.empty() == false){
+		cout << revisitRoute.front() << " "; 
+		revisitRoute.pop();
+	}
+	return 0;
+}
+
 int naviSyst::peekTravHist(){
 	int p = travHist.top();
 	return p;
@@ -127,12 +240,15 @@ int naviSyst::popTravHist(){
 }
 
 int naviSyst::printTravHist(){
+	int moves = 0;
 	stack<int> temp = travHist;
 	cout << "(printTravHist) Stack top: " << endl;
 	while(!temp.empty()){
 		cout << temp.top() << " ";
 		temp.pop();
+		moves++;
 	}
+	cout << "Total moves: " << moves << endl;
 	cout << endl;
 	return 0;
 }
@@ -177,6 +293,18 @@ void naviSyst::pushCritPath(int cellNum){
 
 void naviSyst::pushTravHist(int cellNum){
 	travHist.push(cellNum);
+}
+
+void naviSyst::setActiveMap(string mapSize){
+	if(strcmp(&mapSize[0], "6x6") == 0){
+		activeMap = &map6x6;
+	}
+	else if(strcmp(&mapSize[0], "7x7") == 0){
+		activeMap = &map7x7;
+	}
+	else{
+		activeMap = &map5x5;
+	}
 }
 
 void naviSyst::pushRevisit(int cellNum){
@@ -248,7 +376,6 @@ int naviSyst::moveCell(char nextDir){
 			curr = curr->getAdj('E');
 			currFace = 'E';
 		}	
-		//Hi Ernie
 		else if(nextDir == 'S'){
 			faceRight();
 			rightRotates++;
@@ -327,23 +454,29 @@ int naviSyst::moveCell(char nextDir){
 }
 
 void naviSyst::revisitCell(){
+
+//*********************************
+//	int dest = popRevisit();
+//	moveToCell(dest);
+//*********************************	
+		
 	queue<int> revisitRoute; // Queue used to travel to the cell that must be revisited
+	list<int> routeToOpt; // Queue that must be optimized
 	stack<int> temp; // Stack used to restore the travelHist stack
 	unitCell* curr = activeMap->getCurr();
-	int dest = popRevisit();
+	int dest = popRevisit(); // Indicate the cell that must be revisited
 
 	temp.push(popTravHist()); // Top of the travHist stack is the current node, so we don't want to include it in the revisitRoute queue
 	// cout << "(naviSyst::revisitCell) Travel history: " << endl; 
 	// printTravHist();
 	int travHistTop = peekTravHist();
 
-
-	while((!travHist.empty())&&(travHistTop != dest)){ // Push the cells that lead to the destination onto the revisitRoute stack
-		revisitRoute.push(peekTravHist());
+	while((!travHist.empty())&&(travHistTop != dest)){ // Push the cells that lead to the destination onto the routeToOpt list
+		routeToOpt.push_back(peekTravHist());
 		temp.push(popTravHist());
 		travHistTop = peekTravHist();
-	}
-	revisitRoute.push(peekTravHist()); // Last value to enqueue onto the revisitRoute queue should be the destination
+	}	
+	routeToOpt.push_back(peekTravHist()); // Last value to enqueue onto the revisitRoute queue should be the destination
 	temp.push(popTravHist());
 	
 	while(!temp.empty()){ //Restore the travel history stack
@@ -351,32 +484,180 @@ void naviSyst::revisitCell(){
 		temp.pop();
 	}
 	
-	// queue<int> rr = revisitRoute;
-	// cout << "(naviSyst::revisitCell) revisitRoute front: ";
-	// while(!rr.empty()){
-		// cout << rr.front() << " ";
-		// rr.pop();
-	// }
-	// cout << endl;
+	//Begin Looping Route Elimination Algorithm (LREA) on the routeToOpt list
+	queue<int> routeToOptRev; //aka RTOR, used to check for loops against the top value of the CFL. I want to iterate through the routeToOpt list in reverse because I want the longest loop. (e.g., if the CFL contains 9 (top), 16, 17, 18, 17, 16 (bottom), then the longest loop is 16, 17, 18, 17, 16, not 16, 17, 16).
+	stack<int> checkForLoop; // aka CFL. This stack contains values that must be checked for loops (e.g., if the CFL contains 9 (top), 16, 17, 18, 17, 16 (bottom), then 16 is a cell where a loop begins)
+	queue<int> restoreRTOR; // Used to restore the RTOR so we can iterate through it again through each value of the CFL stack that needs to be checked.
+	int cfl; // Current top value of the CFL that is being checked to see if it is the start of a redundant loop.
 	
-	while(!revisitRoute.empty()){ //Travel to the cell that must be revisited
+	//LREA Step 1: Initialize RTOR and CFL 
+	while(routeToOpt.empty() == false){ // The RTOR list must contain the contents of routeToOpt in reverse. I know I could have just accessed the last element of routeToOpt to accomplish the same thing, but it's easier for me to handle this algorithm this way
+		routeToOptRev.push(routeToOpt.back());
+		checkForLoop.push(routeToOpt.back());
+		routeToOpt.pop_back();
+	}
+	checkForLoop.push(getCurrNum()); // Need to have the current occupied cell in the CFL stack because we want to check loops that may return to the current cell
+	
+	// Continue the LREA until the checkForLoop stack is empty, i.e., all possible values loops have been checked
+	while(checkForLoop.empty() == false){
+		cfl = checkForLoop.top();
+		//LREA Step 2: Check front value of CFL against all values of RTOR
+		while(routeToOptRev.empty() == false){
+			//LREA Step 3: If the current front value in the RTOR does not match cfl, then store the non-matching value in the restoreRTOR stack 
+			if(cfl != routeToOptRev.front()){
+					restoreRTOR.push(routeToOptRev.front());
+					routeToOptRev.pop();
+			}
+			//LREA Step 4a: If the current front value in the RTOR matches cfl, then save the value onto the revisitRoute
+			else if(cfl == routeToOptRev.front()){
+				revisitRoute.push(cfl);
+				//LREA Step 4b: If the RTOR is empty after the matching cfl value, then no loop actually exists. Must verify that a loop actually exists to get rid of it.
+				routeToOptRev.pop();
+				if(routeToOptRev.empty() == false){
+					//LREA Step 4c: If the RTOR is not empty after the matching cfl value, then discard the rest of the contents, since the remaining values in the RTOR are the redundant loop.
+					while(routeToOptRev.empty() == false){
+						routeToOptRev.pop();
+					}
+					//LREA Step 4d: Since a loop is found, the CFL must be popped to omit iterating through the loop. Pop the CFL stack until the top value is repeated. Pop once more so the value right after the repeated one will be checked during the next iteration of the LREA.
+					checkForLoop.pop();
+					while(checkForLoop.top() != cfl){
+						checkForLoop.pop();
+					}
+				}
+			}
+		}
+		//LREA Step 4e: Restore the RTOR
+		while(restoreRTOR.empty() == false){
+			routeToOptRev.push(restoreRTOR.front());
+			restoreRTOR.pop();
+		}
+		//LREA Step 5: Pop the checkForLoop stack to ready the next value to be checked
+		checkForLoop.pop();	
+	}
+	
+	while(!revisitRoute.empty()){ // Begin algorithm to travel back to cell
 		// cout << "(naviSyst::revisitCell) Travelling to cell " << revisitRoute.front() << " from cell " << getCurrNum() << endl;
-		for(int i = 0; i < 4; i++){
-			if((curr->getAdj(i))->getNum() == revisitRoute.front()){ // If the adjacent cell to the current cell matches the next cell on the revisitRoute queue, travel to it.
-				moveCell(i);
-				revisitRoute.pop();
-				curr = curr->getAdj(i); // Update the new current cell
-				break;
+		if((curr->getNum() == revisitRoute.front())){ // If the next cell to travel to is already the current cell, get the next cell in the revisit route
+			revisitRoute.pop();
+		}
+		else{
+			for(int i = 0; i < 4; i++){
+				if(curr->getAdj(i) == NULL){ //If the adjacent cell is non-existent (i.e., the current cell being reviewed is on the outer part of the map)
+					continue;
+				}
+				else if((curr->getAdj(i))->getNum() == revisitRoute.front()){ // If the adjacent cell to the current cell matches the next cell on the revisitRoute queue, travel to it.
+					moveCell(i);
+					revisitRoute.pop();
+					curr = curr->getAdj(i); // Update the new current cell
+					break;
+				}
 			}
 		}
 	}
 }
 
 void naviSyst::moveToFin(){
+		
+	queue<int> revisitRoute; // Queue used to travel to the cell that must be revisited
+	list<int> routeToOpt; // Queue that must be optimized
+	stack<int> temp; // Stack used to restore the travelHist stack
+	unitCell* curr = activeMap->getCurr();
+	int dest = activeMap->getFin()->getNum(); // Indicate the cell that must be revisited
+
+	temp.push(popTravHist()); // Top of the travHist stack is the current node, so we don't want to include it in the revisitRoute queue
+	// cout << "(naviSyst::revisitCell) Travel history: " << endl; 
+	// printTravHist();
+	int travHistTop = peekTravHist();
+
+	while((!travHist.empty())&&(travHistTop != dest)){ // Push the cells that lead to the destination onto the routeToOpt list
+		routeToOpt.push_back(peekTravHist());
+		temp.push(popTravHist());
+		travHistTop = peekTravHist();
+	}	
+	routeToOpt.push_back(peekTravHist()); // Last value to enqueue onto the revisitRoute queue should be the destination
+	temp.push(popTravHist());
 	
-	int endCellNum = activeMap->getFin()->getNum(); //Get the cell number of the ending cell
+	while(!temp.empty()){ //Restore the travel history stack
+		pushTravHist(temp.top());
+		temp.pop();
+	}
+	
+	//Begin Looping Route Elimination Algorithm (LREA) on the routeToOpt list
+	queue<int> routeToOptRev; //aka RTOR, used to check for loops against the top value of the CFL. I want to iterate through the routeToOpt list in reverse because I want the longest loop. (e.g., if the CFL contains 9 (top), 16, 17, 18, 17, 16 (bottom), then the longest loop is 16, 17, 18, 17, 16, not 16, 17, 16).
+	stack<int> checkForLoop; // aka CFL. This stack contains values that must be checked for loops (e.g., if the CFL contains 9 (top), 16, 17, 18, 17, 16 (bottom), then 16 is a cell where a loop begins)
+	queue<int> restoreRTOR; // Used to restore the RTOR so we can iterate through it again through each value of the CFL stack that needs to be checked.
+	int cfl; // Current top value of the CFL that is being checked to see if it is the start of a redundant loop.
+	
+	//LREA Step 1: Initialize RTOR and CFL 
+	while(routeToOpt.empty() == false){ // The RTOR list must contain the contents of routeToOpt in reverse. I know I could have just accessed the last element of routeToOpt to accomplish the same thing, but it's easier for me to handle this algorithm this way
+		routeToOptRev.push(routeToOpt.back());
+		checkForLoop.push(routeToOpt.back());
+		routeToOpt.pop_back();
+	}
+	checkForLoop.push(getCurrNum()); // Need to have the current occupied cell in the CFL stack because we want to check loops that may return to the current cell
+	
+	// Continue the LREA until the checkForLoop stack is empty, i.e., all possible values loops have been checked
+	while(checkForLoop.empty() == false){
+		cfl = checkForLoop.top();
+		//LREA Step 2: Check front value of CFL against all values of RTOR
+		while(routeToOptRev.empty() == false){
+			//LREA Step 3: If the current front value in the RTOR does not match cfl, then store the non-matching value in the restoreRTOR stack 
+			if(cfl != routeToOptRev.front()){
+					restoreRTOR.push(routeToOptRev.front());
+					routeToOptRev.pop();
+			}
+			//LREA Step 4a: If the current front value in the RTOR matches cfl, then save the value onto the revisitRoute
+			else if(cfl == routeToOptRev.front()){
+				revisitRoute.push(cfl);
+				//LREA Step 4b: If the RTOR is empty after the matching cfl value, then no loop actually exists. Must verify that a loop actually exists to get rid of it.
+				routeToOptRev.pop();
+				if(routeToOptRev.empty() == false){
+					//LREA Step 4c: If the RTOR is not empty after the matching cfl value, then discard the rest of the contents, since the remaining values in the RTOR are the redundant loop.
+					while(routeToOptRev.empty() == false){
+						routeToOptRev.pop();
+					}
+					//LREA Step 4d: Since a loop is found, the CFL must be popped to omit iterating through the loop. Pop the CFL stack until the top value is repeated. Pop once more so the value right after the repeated one will be checked during the next iteration of the LREA.
+					checkForLoop.pop();
+					while(checkForLoop.top() != cfl){
+						checkForLoop.pop();
+					}
+				}
+			}
+		}
+		//LREA Step 4e: Restore the RTOR
+		while(restoreRTOR.empty() == false){
+			routeToOptRev.push(restoreRTOR.front());
+			restoreRTOR.pop();
+		}
+		//LREA Step 5: Pop the checkForLoop stack to ready the next value to be checked
+		checkForLoop.pop();	
+	}
+	
+	while(!revisitRoute.empty()){ // Begin algorithm to travel back to cell
+		// cout << "(naviSyst::revisitCell) Travelling to cell " << revisitRoute.front() << " from cell " << getCurrNum() << endl;
+		if((curr->getNum() == revisitRoute.front())){ // If the next cell to travel to is already the current cell, get the next cell in the revisit route
+			revisitRoute.pop();
+		}
+		else{
+			for(int i = 0; i < 4; i++){
+				if(curr->getAdj(i) == NULL){ //If the adjacent cell is non-existent (i.e., the current cell being reviewed is on the outer part of the map)
+					continue;
+				}
+				else if((curr->getAdj(i))->getNum() == revisitRoute.front()){ // If the adjacent cell to the current cell matches the next cell on the revisitRoute queue, travel to it.
+					moveCell(i);
+					revisitRoute.pop();
+					curr = curr->getAdj(i); // Update the new current cell
+					break;
+				}
+			}
+		}
+	}
+}
+
+void naviSyst::moveToCell(int returnCell){
+	int endCellNum = returnCell; //Get the cell number of the ending cell
 	stack<int> travHistCopy = travHist;
-	queue<int> routeToFin; // Will contain the route to the ending cell from whatever cell the robot is currently in
+	deque<int> routeToFin; // Will contain the route to the ending cell from whatever cell the robot is currently in
 	unitCell* currCopy = getCurrCell(); // unitCell pointer used to plan out the direct route to the ending cell
 	unitCell* curr = activeMap->getCurr();
 	
@@ -385,7 +666,7 @@ void naviSyst::moveToFin(){
 	while((travHistCopy.top() != endCellNum)&&(!travHistCopy.empty())){
 		unitCell* t = activeMap->getCell(travHistCopy.top());	// Get the address of the cell that is next on the top of the travHistCopy stack
 		//cout << "(naviSyst::moveToFin) Checking if cell " << t->getNum() << " is a dead end" << endl;
-		if(t->getNumWalls() >= 3){ // If that cell has more than 3 walls, then it is a dead end at the robot should not travel there on the way back to the ending cell
+		if(t->getNumWalls() >= 3){ // If that cell has more than 3 walls, then it is a dead end and the robot should not travel there on the way back to the cell
 			travHistCopy.pop();
 			continue;
 		}
@@ -394,11 +675,39 @@ void naviSyst::moveToFin(){
 			continue;
 		}
 		else{
-			routeToFin.push(t->getNum());
+			routeToFin.push_back(t->getNum());
 			travHistCopy.pop();
 		}
 	}
-	routeToFin.push(endCellNum); // Push the ending cell onto the routeToFin queue because the previous while loop does not do that
+	
+	//Determine quickest path to destination
+	int rtf[100]; // Route to fin array for checking the shortest path to the destination
+	deque<int> rtfCopy = routeToFin;
+	int routeSteps = 0;
+	for(int i = 0; rtfCopy.empty() == false; i++){
+		rtf[i] = rtfCopy.front();
+		rtfCopy.pop_front();
+		routeSteps++;
+	}
+	
+	rtfCopy.clear();
+	if(routeSteps > 1){
+		for(int k = routeSteps; k > 0; k--){
+			for(int i = 0; i < routeSteps; i++){
+				if(rtf[k] == rtf[i]){
+					for(int j = 0; j < i; j++){
+						rtfCopy.push_back(rtf[j]);
+					}
+					break;
+				}
+			}
+		}
+	}
+	routeToFin = rtfCopy;
+	
+	routeToFin.push_back(endCellNum); // Push the ending cell onto the routeToFin queue because the previous while loop does not do that
+	
+	
 	
 	// cout << "(naviSyst::moveToFin) travHist: ";
 	// printTravHist();
@@ -415,7 +724,7 @@ void naviSyst::moveToFin(){
 		for(int i = 0; i < 4; i++){
 			if((curr->getAdj(i))->getNum() == routeToFin.front()){ // If the adjacent cell to the current cell matches the next cell on the revisitRoute queue, travel to it.
 				moveCell(i);
-				routeToFin.pop();
+				routeToFin.pop_front();
 				curr = curr->getAdj(i); // Update the new current cell
 				break;
 			}
@@ -474,167 +783,24 @@ int naviSyst::traverseMapSim(){
 void naviSyst::callWallSensors(){ 
 }
 
-void naviSyst::callWallSensorsSim(){ //Dummy function that returns wall values according to the sample 5x5 maze given by the IEEE competition
+void naviSyst::callWallSensorsSim(){ //Simulates sensor readings for a given map defined by the boolean array "maze"
+
+	bool maze[] = {true,true,false,true,true,true,false,true,true,false,false,true,true,false,true,false,true,false,false,false,true,true,false,false,true,true,false,true,false,false,false,true,false,false,true,false,false,true,true,false,true,false,false,true,false,true,true,false,false,true,false,true,false,true,false,true,false,true,false,true,true,false,true,true,true,true,false,false,false,true,false,true,true,true,false,true,false,true,false,true,false,true,false,true,false,false,false,true,true,false,true,false,false,true,true,false,false,true,false,true,false,true,false,true,false,true,false,true,false,true,false,true,false,true,false,true,true,false,false,true,true,false,true,false,false,true,true,false,false,false,true,true,false,true,true,false,false,true,false,true,false,true,true,true,false,false,true,true,true,false,true,false,true,false,true,false,true,false,true,false,true,true,false,false,false,true,false,true,true,false,true,true,true,false,true,false,true,false,true,false,true,false,true,false,true,true,true,false,false,true,true,true,false,true,true,true}
+;
+
+
+
 	unitCell* c = activeMap->getCurr();
-	int n = c->getNum(); 
-	if(n == 48){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',true);
-		c->setWall('W',true);
-	}
-	else if(n == 41){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 40){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',true);
-		c->setWall('W',false);
-	}
-	else if(n == 39){
-		c->setWall('N',false);
-		c->setWall('E',false);
-		c->setWall('S',true);
-		c->setWall('W',true);	
-	}
-	else if(n == 38){
-		c->setWall('N',true);
-		c->setWall('E',true);
-		c->setWall('S',true);
-		c->setWall('W',false);
-	}
-	else if(n == 37){
-		c->setWall('N',false);
-		c->setWall('E',false);
-		c->setWall('S',true);
-		c->setWall('W',true);
-	}
-	else if(n == 34){
-		c->setWall('N',true);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',false);
-	}
-	else if(n == 33){
-		c->setWall('N',false);
-		c->setWall('E',false);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 32){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',false);
-	}
-	else if(n == 31){
-		c->setWall('N',false);
-		c->setWall('E',false);
-		c->setWall('S',true);
-		c->setWall('W',false);
-	}
-	else if(n == 30){
-		c->setWall('N',false);
-		c->setWall('E',false);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 27){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',true);
-		c->setWall('W',false);
-	}
-	else if(n == 26){
-		c->setWall('N',true);
-		c->setWall('E',false);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 25){
-		c->setWall('N',true);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 24){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 23){
-		c->setWall('N',true);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 20){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 19){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',true);
-		c->setWall('W',false);
-	}
-	else if(n == 18){
-		c->setWall('N',false);
-		c->setWall('E',false);
-		c->setWall('S',true);
-		c->setWall('W',true);
-	}
-	else if(n == 17){
-		c->setWall('N',false);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',false);
-	}
-	else if(n == 16){
-		c->setWall('N',false);
-		c->setWall('E',false);
-		c->setWall('S',true);
-		c->setWall('W',true);
-	}
-	else if(n == 13){
-		c->setWall('N',true);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',false);
-	}
-	else if(n == 12){
-		c->setWall('N',true);
-		c->setWall('E',false);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 11){
-		c->setWall('N',true);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 10){
-		c->setWall('N',true);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
-	else if(n == 9){
-		c->setWall('N',true);
-		c->setWall('E',true);
-		c->setWall('S',false);
-		c->setWall('W',true);
-	}
+	int n = c->getNum();
+	c->setWall('N',maze[((n-1)*4) + 0]);
+	c->setWall('E',maze[((n-1)*4) + 1]);
+	c->setWall('S',maze[((n-1)*4) + 2]);
+	c->setWall('W',maze[((n-1)*4) + 3]);
+
 	c->setWallScan(true); //This line should not be included in the actual callWallSensors function, it should be executed by scanWalls instead.
 }
+
+
 
 int naviSyst::firstCellProtocol(){
 	unitCell* c = activeMap->getCurr();

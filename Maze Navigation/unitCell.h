@@ -42,6 +42,7 @@ public:
 	bool isUnexplPathsEmpty();
 	unitCell* getAdj(int crdnlDir);
 	unitCell* getAdj(char crdnlDir);
+	int getAdjNum(int crdnlDir);
 	
 	void setNum(int n);
 	void setWallScan(bool check);
@@ -220,6 +221,10 @@ unitCell* unitCell::getAdj(char crdnlDir){
 		cout << "(unitCell " << num << ")Error retrieving adjacent cell" << endl;
 		exit(0);
 	}
+}
+
+int unitCell::getAdjNum(int crdnlDir){
+	return adj[crdnlDir]->getNum();
 }
 
 void unitCell::setNum(int n){

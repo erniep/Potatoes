@@ -8,14 +8,33 @@
 #include <stack>
 #include "naviSyst.h"
 
+//#include <wiringPi.h>
+
 using namespace std;
+
+//This program tests the maze algorithm solving a 5x5 maze
 
 int main(){
 	bool done = false;
 	naviSyst ns = naviSyst();
 	char nextPath;
 	ns.incCellsVisited(); // Must count the starting cell towards cells visited
-	
+
+	/*wiringPiSetup();
+	int count=5;
+	//Wait for start button
+	while (digitalRead(START_GPIO) == 0) {
+		if (digitalRead(SIZE_GPIO) == 1) { 
+			count++;
+			if (count <= 7) {
+				//good
+			} else {
+				//reset
+				count = 5;
+			}
+		}
+		set activeMap according to count
+	}*/
 	ns.callWallSensorsSim();
 	ns.checkFreePaths();
 	nextPath = ns.getNextPath();
@@ -29,7 +48,8 @@ int main(){
 		nextPath = ns.getNextPath();
 		
 		if((nextPath == 'X')&&(ns.getTotalCells() != ns.getCellsVisited())){
-			// cout << "Revisiting cell: " << ns.peekRevisit() << endl;
+			cout << "Revisiting cell: " << ns.peekRevisit() << endl;
+			ns.printTravHist();
 			ns.revisitCell();
 			cout << "Revisited cell: " << ns.getCurrNum() << endl;
 		}
@@ -51,8 +71,9 @@ int main(){
 	cout << "Total L/R/About rotates: " << ns.leftRotates << "/" << ns.rightRotates << "/" << ns.aboutFaceRotates << endl;
 	cout << "Travel history: ";
 	ns.printTravHist();
+	cout << "Critical path: "; 
+	ns.printCritPath();
 
-	//Solves maze in 50 moves (49 not including scanning the initial square for walls)
 	
 	return 0;
 
