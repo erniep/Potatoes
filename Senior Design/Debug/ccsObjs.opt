@@ -1,0 +1,1 @@
+-l"./configPkg/linker.cmd" "./Accelerometer.obj" "./EK_TM4C123GXL.obj" "./drive.obj" "./empty.obj" "./light_sensor.obj" "./motors.obj" "../EK_TM4C123GXL.cmd" -l"libc.a" -l"c:/ti/tirtos_tivac_2_10_01_38/products/TivaWare_C_Series-2.1.0.12573c/driverlib/ccs/Debug/driverlib.lib" -l"c:/ti/tirtos_tivac_2_10_01_38/products/TivaWare_C_Series-2.1.0.12573c/usblib/ccs/Debug/usblib.lib" 
