@@ -30,7 +30,7 @@
 #define DRIVESTATE_STRAFERIGHT		0x7
 
 /* PID Controller Values */
-#define KP							40
+#define KP							10
 #define KI							0
 #define KD							2
 #define F_SAMP						100
@@ -39,7 +39,7 @@
 #define BLK_TAPE_READ				5
 
 /* PID U limits */
-#define U_MAX						25
+#define U_MAX						100
 
 /* Fixed Point Coefficient Values */
 #define fxdpnt_coeff				1000				// To be adjusted to be tuned for optimal resolution on fixed-point math

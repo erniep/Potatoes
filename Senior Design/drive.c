@@ -73,7 +73,7 @@ void Robot_drive_task(void)
 			u2 = u2 + (pid_coeff[0] * e2[0] + pid_coeff[1] * e2[1] + pid_coeff[2] * e2[2]) / fxdpnt_coeff;
 			mag_u = abs(u);
 			if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
-			fwd_pid(u, dutycycle);
+			fwd_pid(u, u2, dutycycle);
 			break;
 		case DRIVESTATE_REV:
 			// First Check for horizontal lines
@@ -102,10 +102,12 @@ void Robot_drive_task(void)
 			}
 			// PID
 			error_calc(lightsnsr_val2, e);
+			error_calc(lightsnsr_val1, e2);
 			u = u + (pid_coeff[0] * e[0] + pid_coeff[1] * e[1] + pid_coeff[2] * e[2]) / fxdpnt_coeff;
+			u2 = u2 + (pid_coeff[0] * e2[0] + pid_coeff[1] * e2[1] + pid_coeff[2] * e2[2]) / fxdpnt_coeff;
 			mag_u = abs(u);
 			if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
-			rev_pid(u,dutycycle);
+			rev_pid(u, u2, dutycycle);
 			break;
 		case DRIVESTATE_STRAFELEFT:
 			// First Check for horizontal lines
@@ -134,10 +136,12 @@ void Robot_drive_task(void)
 			}
 			// PID
 			error_calc(lightsnsr_val3, e);
+			error_calc(lightsnsr_val4, e2);
 			u = u + (pid_coeff[0] * e[0] + pid_coeff[1] * e[1] + pid_coeff[2] * e[2]) / fxdpnt_coeff;
+			u2 = u2 + (pid_coeff[0] * e2[0] + pid_coeff[1] * e2[1] + pid_coeff[2] * e2[2]) / fxdpnt_coeff;
 			mag_u = abs(u);
 			if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
-			tl_pid(u,dutycycle);
+			tl_pid(u, u2, dutycycle);
 			break;
 		case DRIVESTATE_STRAFERIGHT:
 			// First Check for horizontal lines
@@ -165,10 +169,12 @@ void Robot_drive_task(void)
 			}
 			// PID
 			error_calc(lightsnsr_val4, e);
+			error_calc(lightsnsr_val3, e2);
 			u = u + (pid_coeff[0] * e[0] + pid_coeff[1] * e[1] + pid_coeff[2] * e[2]) / fxdpnt_coeff;
+			u2 = u2 + (pid_coeff[0] * e2[0] + pid_coeff[1] * e2[1] + pid_coeff[2] * e2[2]) / fxdpnt_coeff;
 			mag_u = abs(u);
 			if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
-			tr_pid(u,dutycycle);
+			tl_pid(u, u2, dutycycle);
 			break;
 		case DRIVESTATE_TURNCW:
 			if((lightsnsr_val4 == 0x7) || (lightsnsr_val4 == 0x2))

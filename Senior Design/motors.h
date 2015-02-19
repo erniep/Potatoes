@@ -42,8 +42,8 @@
 #define SWFREQ_DIGI_SERVO		300
 
 // Max Duty Cycles for PID
-#define MAXDC					95
-#define MINDC					5
+#define LOWERLIM				5
+#define UPPERLIM				95
 // Duty Cycles for Pan servo
 #define DUTY_LT 59
 #define DUTY_RT 33
@@ -225,8 +225,7 @@ void ccw_motors(uint8_t duty, uint8_t num_turns);
 //! \return none
 //
 //*****************************************************************************
-//void fwd_pid(int32_t ufwd,int32_t uback, uint8_t dutyref);
-void fwd_pid(int32_t u, uint8_t dutyref);
+void fwd_pid(int32_t ufwd,int32_t uback, uint8_t dutyref);
 //*****************************************************************************
 //
 //! fwd_pid - forward PID movement
@@ -242,7 +241,7 @@ void fwd_pid(int32_t u, uint8_t dutyref);
 //! \return none
 //
 //*****************************************************************************
-void rev_pid(int32_t u, uint8_t dutyref);
+void rev_pid(int32_t ufwd,int32_t uback, uint8_t dutyref);
 //*****************************************************************************
 //
 //! rev_pid - Reverse PID movement
@@ -256,7 +255,7 @@ void rev_pid(int32_t u, uint8_t dutyref);
 //! \return none
 //
 //*****************************************************************************
-void tl_pid(int32_t u, uint8_t dutyref);
+void tl_pid(int32_t uleft,int32_t uright, uint8_t dutyref);
 //*****************************************************************************
 //
 //! tl_pid - translational left PID movement
@@ -270,7 +269,7 @@ void tl_pid(int32_t u, uint8_t dutyref);
 //! \return none
 //
 //*****************************************************************************
-void tr_pid(int32_t u, uint8_t dutyref);
+void tr_pid(int32_t uleft,int32_t uright, uint8_t dutyref);
 //*****************************************************************************
 //
 //! tr_pid - translational right PID movement
