@@ -337,4 +337,28 @@ void pan_rt(void);
 //! \return none
 //
 //*****************************************************************************
+void control_effort_limit(int8_t * DCmotors);
+//*****************************************************************************
+//
+//! Limits Duty cycle on motors to upper and lower limits defined in this file
+//!
+//! \param int8_t * DCmotors - Pointer to motor array representation 0th order
+//!
+//! being m1, 1st order being m2, and so on...
+//!
+//! \return none
+//
+//*****************************************************************************
+void setDC(int8_t * DCmotors);
+//*****************************************************************************
+//
+//! Set duty cycle to motors
+//!
+//! \param int8_t * DCmotors - Pointer to motor array representation 0th order
+//!
+//! being m1, 1st order being m2, and so on...
+//!
+//! \return none
+//
+//*****************************************************************************
 #endif /* MOTORS_H_ */

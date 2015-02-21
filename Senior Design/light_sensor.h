@@ -39,8 +39,8 @@
 #define LIGHTSNSR2_BASE				GPIO_PORTC_BASE
 #define LIGHTSNSR3A_BASE			GPIO_PORTD_BASE
 #define LIGHTSNSR3B_BASE			GPIO_PORTF_BASE
-#define LIGHTSNSR4A_BASE			GPIO_PORTF_BASE
-#define LIGHTSNSR4B_BASE			GPIO_PORTB_BASE
+#define LIGHTSNSR4A_BASE			GPIO_PORTB_BASE
+#define LIGHTSNSR4B_BASE			GPIO_PORTC_BASE
 #define LIGHTSNSR1					GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4
 #define LIGHTSNSR1_1				GPIO_PIN_2
 #define LIGHTSNSR1_2				GPIO_PIN_3
@@ -55,16 +55,16 @@
 #define LIGHTSNSR3A_2				GPIO_PIN_7
 #define LIGHTSNSR3B_3				GPIO_PIN_4
 #define LIGHTSNSR4A					GPIO_PIN_2 | GPIO_PIN_3
-#define LIGHTSNSR4B					GPIO_PIN_3
+#define LIGHTSNSR4B					GPIO_PIN_4
 #define LIGHTSNSR4A_1				GPIO_PIN_2
 #define LIGHTSNSR4A_2				GPIO_PIN_3
-#define LIGHTSNSR4B_3				GPIO_PIN_3
+#define LIGHTSNSR4B_3				GPIO_PIN_4
 
 /* Threshold values for light sensor */
 #define fixedpoint_microsec_coeff 	1000000
 
 /* Timer periods */
-#define timer2B_prd 				125
+#define timer2B_prd 				65
 #define timer2A_prd 				10
 
 /* function prototypes */

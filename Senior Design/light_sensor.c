@@ -8,10 +8,7 @@
 /*
  * Global Variables
  */
-uint32_t lightsnsr_val1 = 0;
-uint32_t lightsnsr_val2 = 0;
-uint32_t lightsnsr_val3 = 0;
-uint32_t lightsnsr_val4 = 0;
+uint32_t lightsnsr_val[4];
 
 void Robot_lightsnsr_task(void)
 {
@@ -71,10 +68,10 @@ void timer2A_ISR(void)
 void timer2B_ISR(void)
 {
 	TimerIntClear(TIMER2_BASE, TIMER_TIMB_TIMEOUT);																		// Clear interrupt
-	lightsnsr_val1 = GPIOPinRead(LIGHTSNSR1_BASE, LIGHTSNSR1) >> 2;														// Read light sensors and update global vars
-	lightsnsr_val2 = GPIOPinRead(LIGHTSNSR2_BASE, LIGHTSNSR2) >> 5;
-	lightsnsr_val3 = (GPIOPinRead(LIGHTSNSR3A_BASE, LIGHTSNSR3A) >> 6)|(GPIOPinRead(LIGHTSNSR3B_BASE, LIGHTSNSR3B) >> 2);
-	lightsnsr_val4 = (GPIOPinRead(LIGHTSNSR4A_BASE, LIGHTSNSR4A) >> 2)|(GPIOPinRead(LIGHTSNSR4B_BASE, LIGHTSNSR4B) >> 1);
+	lightsnsr_val[0] = GPIOPinRead(LIGHTSNSR1_BASE, LIGHTSNSR1) >> 2;														// Read light sensors and update global vars
+	lightsnsr_val[1] = GPIOPinRead(LIGHTSNSR2_BASE, LIGHTSNSR2) >> 5;
+	lightsnsr_val[2] = (GPIOPinRead(LIGHTSNSR3A_BASE, LIGHTSNSR3A) >> 6)|(GPIOPinRead(LIGHTSNSR3B_BASE, LIGHTSNSR3B) >> 2);
+	lightsnsr_val[3] = (GPIOPinRead(LIGHTSNSR4A_BASE, LIGHTSNSR4A) >> 2)|(GPIOPinRead(LIGHTSNSR4B_BASE, LIGHTSNSR4B) >> 2);
 	Semaphore_post(Sema_lightsense);																					// Post data rdy Semaphore
 }
 void lightsense_CLK(void)

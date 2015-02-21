@@ -30,13 +30,13 @@
 #define DRIVESTATE_STRAFERIGHT		0x7
 
 /* PID Controller Values */
-#define KP							10
+#define KP							15
 #define KI							0
-#define KD							2
+#define KD							0
 #define F_SAMP						100
 
 /* Black Line consecutive reads */
-#define BLK_TAPE_READ				5
+#define BLK_TAPE_READ				2
 
 /* PID U limits */
 #define U_MAX						100
@@ -88,5 +88,62 @@ int abs(int32_t val);
 //!
 //! \return absolute value of parameter val
 //
+//*****************************************************************************
+int32_t findu(int8_t * e, int32_t u, int32_t * pid_coeff);
+//*****************************************************************************
+//
+//! findu - This function finds u givent the PID coefficients and the errors
+//!
+//! \param int8_t * e - The pointer to the error array that is used in calculation
+//!
+//! \param int32_t u - The previous control effort value
+//!
+//! \param int32_t * pid_coeff - The PID coefficients of the controller
+//!
+//! \return new u value
+//
+//*****************************************************************************
+void linedetection(uint32_t * lightsense_vals, uint8_t * cnt_vals, uint8_t fwd_index, uint8_t rev_index, uint8_t * iterations);
+//*****************************************************************************
+//
+//! linedetection - This function finds horizontal lines and increments a counter
+//!
+//! \param int32_t * lightsense_vals - Array of the lightsensor values
+//!
+//! \param int8_t cnt_vals - The count values stored in an array
+//!
+//! \param uint8_t rev_index - The index of the lightsensor according to the
+//! the diagram in the header file
+//!
+//! \param uint8_t fwd_index - The index of the fwd light sensor
+//!
+//! \param uint8_t * iterations - A pointer to the number of iterations done
+//!
+//*****************************************************************************
+void intersectiondetect(uint32_t * lightsense_vals, uint8_t * cnt_vals, uint8_t * iterations);
+//*****************************************************************************
+//
+//! linedetection - This function finds intersections and increments a counter
+//!
+//! \param int32_t * lightsense_vals - Array of the lightsensor values
+//!
+//! \param int8_t cnt_vals - The count values stored in an array
+//!
+//! \param uint8_t * iterations - A pointer to the number of iterations done
+//!
+//*****************************************************************************
+void linecheck(int32_t * u_fwd, int32_t * u_back, uint8_t * iterations, uint8_t moves);
+//*****************************************************************************
+//
+//! linecheck - This function finds horizontal lines and increments a counter
+//!
+//! \param int32_t * u_fwd - The control effort of the forward sensor
+//!
+//! \param int32_t * u_back - The control effort of the reverse sensor
+//!
+//! \param uint8_t moves - The number of moves intended
+//!
+//! \param uint8_t * iterations - A pointer to the number of iterations done
+//!
 //*****************************************************************************
 #endif /* DRIVE_H_ */

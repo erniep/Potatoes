@@ -9,10 +9,7 @@
 uint8_t dutycycle = 0;											// Initial Duty Cycle
 uint8_t drivestate = 0;											// Drive Task State
 /* Externs */
-extern uint32_t lightsnsr_val1;
-extern uint32_t lightsnsr_val2;
-extern uint32_t lightsnsr_val3;
-extern uint32_t lightsnsr_val4;
+extern uint32_t lightsnsr_val[4];
 extern uint8_t num_moves;
 /* Functions */
 void Robot_drive_task(void)
@@ -23,15 +20,11 @@ void Robot_drive_task(void)
 	int8_t e2[3];
 	int32_t u;
 	int32_t u2;
-	int32_t mag_u;
 	pid_terms_calc(KP, KI, KD, F_SAMP, pid_coeff);
-	uint8_t blk_cnt1 = 0;										// Consecutive BLK read
-	uint8_t blk_cnt2 = 0;
-	uint8_t blk_cnt3 = 0;
-	uint8_t blk_cnt4 = 0;
+	uint8_t blk_cnt[4];											// Consecutive BLK read counters
 	uint8_t num_iterations = 0;
 
-	fw_motors(70, 200); //Test :)
+	fw_motors(5, 60); //Test :)
 	while(TRUE)
 	{
 		// Pend on semaphore - Light Sensor values updated
@@ -42,209 +35,48 @@ void Robot_drive_task(void)
 			// Do nothing :)
 			break;
 		case DRIVESTATE_FWD:
-			// First Check for horizontal lines
-			if((lightsnsr_val4 == 0x7) || (lightsnsr_val4 == 0x2))
-				{
-					blk_cnt4++;									// Increment BLK tape read counter
-				}
-			else blk_cnt4 = 0;
-			if((lightsnsr_val3 == 0x7) || (lightsnsr_val3 == 0x2))
-				{
-					blk_cnt3++;									// Increment BLK tape read counter
-				}
-			else blk_cnt3 = 0;
-			if((blk_cnt3 >= BLK_TAPE_READ) && (blk_cnt4 >= BLK_TAPE_READ))
-			{
-				blk_cnt3 = 0;
-				blk_cnt4 = 0;
-				if(++num_iterations >= num_moves)
-				{
-					u = 0;
-					num_iterations = 0;
-					stop_motors(dutycycle);						// Change state and stop motors
-					// Future parking algorithm for CW turns
-					// Future support for accelerometer/dist check :)
-				}
-			}
-			// PID Algo
-			error_calc(lightsnsr_val1, e);
-			error_calc(lightsnsr_val2, e2);
-			u = u + (pid_coeff[0] * e[0] + pid_coeff[1] * e[1] + pid_coeff[2] * e[2]) / fxdpnt_coeff;
-			u2 = u2 + (pid_coeff[0] * e2[0] + pid_coeff[1] * e2[1] + pid_coeff[2] * e2[2]) / fxdpnt_coeff;
-			mag_u = abs(u);
-			if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
+			linedetection(lightsnsr_val, blk_cnt, 0, 1, &num_iterations);
+			linecheck(&u, &u2, &num_iterations, num_moves);
+			error_calc(lightsnsr_val[0], e);
+			error_calc(lightsnsr_val[1], e2);
+			u = findu(e, u, pid_coeff);
+			u2 = findu(e2, u2, pid_coeff);
 			fwd_pid(u, u2, dutycycle);
 			break;
 		case DRIVESTATE_REV:
-			// First Check for horizontal lines
-			if((lightsnsr_val4 == 0x7) || (lightsnsr_val4 == 0x2))
-				{
-					blk_cnt4++;									// Increment BLK tape read counter
-				}
-			else blk_cnt4 = 0;
-			if((lightsnsr_val3 == 0x7) || (lightsnsr_val3 == 0x2))
-				{
-					blk_cnt3++;									// Increment BLK tape read counter
-				}
-			else blk_cnt3 = 0;
-			if((blk_cnt3 >= BLK_TAPE_READ) && (blk_cnt4 >= BLK_TAPE_READ))
-			{
-				blk_cnt3 = 0;
-				blk_cnt4 = 0;
-				if(++num_iterations >= num_moves)
-				{
-					u = 0;
-					num_iterations = 0;
-					stop_motors(dutycycle);						// Change state and stop motors
-					// Future parking algorithm for CW turns
-					// Future support for accelerometer/dist check :)
-				}
-			}
-			// PID
-			error_calc(lightsnsr_val2, e);
-			error_calc(lightsnsr_val1, e2);
-			u = u + (pid_coeff[0] * e[0] + pid_coeff[1] * e[1] + pid_coeff[2] * e[2]) / fxdpnt_coeff;
-			u2 = u2 + (pid_coeff[0] * e2[0] + pid_coeff[1] * e2[1] + pid_coeff[2] * e2[2]) / fxdpnt_coeff;
-			mag_u = abs(u);
-			if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
+			linedetection(lightsnsr_val, blk_cnt, 1, 0, &num_iterations);
+			linecheck(&u, &u2, &num_iterations, num_moves);
+			error_calc(lightsnsr_val[0], e);
+			error_calc(lightsnsr_val[1], e2);
+			u = findu(e, u, pid_coeff);
+			u2 = findu(e2, u2, pid_coeff);
 			rev_pid(u, u2, dutycycle);
 			break;
 		case DRIVESTATE_STRAFELEFT:
-			// First Check for horizontal lines
-			if((lightsnsr_val1 == 0x7) || (lightsnsr_val1 == 0x2))
-				{
-					blk_cnt1++;									// Increment BLK tape read counter
-				}
-			else blk_cnt1 = 0;
-			if((lightsnsr_val2 == 0x7) || (lightsnsr_val2 == 0x2))
-				{
-					blk_cnt2++;									// Increment BLK tape read counter
-				}
-			else blk_cnt2 = 0;
-			if((blk_cnt1 >= BLK_TAPE_READ) && (blk_cnt2 >= BLK_TAPE_READ))
-			{
-				blk_cnt1 = 0;
-				blk_cnt2 = 0;
-				if(++num_iterations >= num_moves)
-				{
-					u = 0;
-					num_iterations = 0;
-					stop_motors(dutycycle);						// Change state and stop motors
-					// Future parking algorithm for CW turns
-					// Future support for accelerometer/dist check :)
-				}
-			}
-			// PID
-			error_calc(lightsnsr_val3, e);
-			error_calc(lightsnsr_val4, e2);
-			u = u + (pid_coeff[0] * e[0] + pid_coeff[1] * e[1] + pid_coeff[2] * e[2]) / fxdpnt_coeff;
-			u2 = u2 + (pid_coeff[0] * e2[0] + pid_coeff[1] * e2[1] + pid_coeff[2] * e2[2]) / fxdpnt_coeff;
-			mag_u = abs(u);
-			if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
+			linedetection(lightsnsr_val, blk_cnt, 2, 3, &num_iterations);
+			linecheck(&u, &u2, &num_iterations, num_moves);
+			error_calc(lightsnsr_val[0], e);
+			error_calc(lightsnsr_val[1], e2);
+			u = findu(e, u, pid_coeff);
+			u2 = findu(e2, u2, pid_coeff);
 			tl_pid(u, u2, dutycycle);
 			break;
 		case DRIVESTATE_STRAFERIGHT:
-			// First Check for horizontal lines
-			if((lightsnsr_val1 == 0x7) || (lightsnsr_val1 == 0x2))
-				{
-					blk_cnt1++;									// Increment BLK tape read counter
-				}
-			else blk_cnt1 = 0;
-			if((lightsnsr_val2 == 0x7) || (lightsnsr_val2 == 0x2))
-				{
-					blk_cnt2++;									// Increment BLK tape read counter
-				}
-			else blk_cnt2 = 0;
-			if((blk_cnt1 >= BLK_TAPE_READ) && (blk_cnt2 >= BLK_TAPE_READ))
-			{
-				blk_cnt1 = 0;
-				blk_cnt2 = 0;
-				if(++num_iterations >= num_moves)
-				{
-					u = 0;
-					num_iterations = 0;
-					stop_motors(dutycycle);						// Change state and stop motors
-					// Future support for accelerometer/dist check :)
-				}
-			}
-			// PID
-			error_calc(lightsnsr_val4, e);
-			error_calc(lightsnsr_val3, e2);
-			u = u + (pid_coeff[0] * e[0] + pid_coeff[1] * e[1] + pid_coeff[2] * e[2]) / fxdpnt_coeff;
-			u2 = u2 + (pid_coeff[0] * e2[0] + pid_coeff[1] * e2[1] + pid_coeff[2] * e2[2]) / fxdpnt_coeff;
-			mag_u = abs(u);
-			if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
+			linedetection(lightsnsr_val, blk_cnt, 3, 2, &num_iterations);
+			linecheck(&u, &u2, &num_iterations, num_moves);
+			error_calc(lightsnsr_val[0], e);
+			error_calc(lightsnsr_val[1], e2);
+			u = findu(e, u, pid_coeff);
+			u2 = findu(e2, u2, pid_coeff);
 			tl_pid(u, u2, dutycycle);
 			break;
 		case DRIVESTATE_TURNCW:
-			if((lightsnsr_val4 == 0x7) || (lightsnsr_val4 == 0x2))
-				{
-					blk_cnt4++;									// Increment BLK tape read counter
-				}
-			else blk_cnt4 = 0;
-			if((lightsnsr_val3 == 0x7) || (lightsnsr_val3 == 0x2))
-				{
-					blk_cnt3++;									// Increment BLK tape read counter
-				}
-			else blk_cnt3 = 0;
-			if((lightsnsr_val2 == 0x7) || (lightsnsr_val2 == 0x2))
-				{
-					blk_cnt2++;									// Increment BLK tape read counter
-				}
-			else blk_cnt2 = 0;
-			if((lightsnsr_val1 == 0x7) || (lightsnsr_val1 == 0x2))
-				{
-					blk_cnt1++;									// Increment BLK tape read counter
-				}
-			if(((blk_cnt3 >= BLK_TAPE_READ) && (blk_cnt4 >= BLK_TAPE_READ)) || ((blk_cnt1 >= BLK_TAPE_READ) && (blk_cnt2 >= BLK_TAPE_READ)))
-			{
-				blk_cnt1 = 0;
-				blk_cnt2 = 0;
-				blk_cnt3 = 0;
-				blk_cnt4 = 0;
-				if(++num_iterations >= num_moves)
-				{
-					num_iterations = 0;
-					stop_motors(dutycycle);						// Change state and stop motors
-					// Future parking algorithm for CW turns
-					// Future support for accelerometer check :)
-				}
-			}
+			intersectiondetect(lightsnsr_val, blk_cnt, &num_iterations);
+			linecheck(&u, &u2, &num_iterations, num_moves);
 			break;
 		case DRIVESTATE_TURNCCW:
-			if((lightsnsr_val4 == 0x7) || (lightsnsr_val4 == 0x2))
-				{
-					blk_cnt4++;									// Increment BLK tape read counter
-				}
-			else blk_cnt4 = 0;
-			if((lightsnsr_val3 == 0x7) || (lightsnsr_val3 == 0x2))
-				{
-					blk_cnt3++;									// Increment BLK tape read counter
-				}
-			else blk_cnt3 = 0;
-			if((lightsnsr_val2 == 0x7) || (lightsnsr_val2 == 0x2))
-				{
-					blk_cnt2++;									// Increment BLK tape read counter
-				}
-			else blk_cnt2 = 0;
-			if((lightsnsr_val1 == 0x7) || (lightsnsr_val1 == 0x2))
-				{
-					blk_cnt1++;									// Increment BLK tape read counter
-				}
-			if(((blk_cnt3 >= BLK_TAPE_READ) && (blk_cnt4 >= BLK_TAPE_READ)) || ((blk_cnt1 >= BLK_TAPE_READ) && (blk_cnt2 >= BLK_TAPE_READ)))
-			{
-				blk_cnt1 = 0;
-				blk_cnt2 = 0;
-				blk_cnt3 = 0;
-				blk_cnt4 = 0;
-				if(++num_iterations >= num_moves)
-				{
-					num_iterations = 0;
-					stop_motors(dutycycle);						// Change state and stop motors
-					// Future parking algorithm for CW turns
-					// Future check for accelerometer :)
-				}
-			}
+			intersectiondetect(lightsnsr_val, blk_cnt, &num_iterations);
+			linecheck(&u, &u2, &num_iterations, num_moves);
 			break;
 		}
 	}
@@ -293,4 +125,72 @@ void error_calc(uint32_t lightsnsr, int8_t * error)
 int32_t abs(int32_t val)
 {
 	return val > 0 ? val : -val;
+}
+int32_t findu(int8_t * e, int32_t u, int32_t * pid_coeff)
+{
+	u = u + (pid_coeff[0] * e[0] + pid_coeff[1] * e[1] + pid_coeff[2] * e[2]) / fxdpnt_coeff;
+	uint32_t mag_u = abs(u);
+	if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
+	return u;
+}
+void linedetection(uint32_t * lightsense_vals, uint8_t * cnt_vals, uint8_t fwd_index, uint8_t rev_index, uint8_t * iterations)
+{
+	if((lightsense_vals[fwd_index] == 0x7) || (lightsense_vals[fwd_index] == 0x2))
+		{
+			cnt_vals[fwd_index]++;										// Increment BLK tape read counter
+		}
+	else cnt_vals[fwd_index] = 0;
+	if((lightsense_vals[rev_index] == 0x7) || (lightsense_vals[rev_index] == 0x2))
+		{
+		cnt_vals[rev_index]++;										// Increment BLK tape read counter
+		}
+	else cnt_vals[rev_index] = 0;
+	if((cnt_vals[fwd_index] >= BLK_TAPE_READ) && (cnt_vals[rev_index] >= BLK_TAPE_READ))
+	{
+		cnt_vals[fwd_index] = 0;
+		cnt_vals[rev_index] = 0;
+		(*iterations)++;
+	}
+}
+
+void intersectiondetect(uint32_t * lightsense_vals, uint8_t * cnt_vals, uint8_t * iterations)
+{
+	if((lightsense_vals[0] == 0x7) || (lightsense_vals[0] == 0x2))
+		{
+			cnt_vals[0]++;									// Increment BLK tape read counter
+		}
+	else cnt_vals[0] = 0;
+	if((lightsense_vals[1] == 0x7) || (lightsense_vals[1] == 0x2))
+		{
+			cnt_vals[1]++;									// Increment BLK tape read counter
+		}
+	else cnt_vals[1] = 0;
+	if((lightsense_vals[2] == 0x7) || (lightsense_vals[2] == 0x2))
+		{
+			cnt_vals[2]++;									// Increment BLK tape read counter
+		}
+	else cnt_vals[2] = 0;
+	if((lightsense_vals[3] == 0x7) || (lightsense_vals[3] == 0x2))
+		{
+			cnt_vals[3]++;									// Increment BLK tape read counter
+		}
+	else cnt_vals[3] = 0;
+	if(((cnt_vals[0] >= BLK_TAPE_READ) && (cnt_vals[1] >= BLK_TAPE_READ)) || ((cnt_vals[2] >= BLK_TAPE_READ) && (cnt_vals[3] >= BLK_TAPE_READ)))
+	{
+		cnt_vals[0] = 0;									// Clear BLK tape read counters
+		cnt_vals[1] = 0;
+		cnt_vals[2] = 0;
+		cnt_vals[3] = 0;
+		*(iterations)++;									// Increment Iteration Counter
+	}
+}
+void linecheck(int32_t * u_fwd, int32_t * u_back, uint8_t * iterations, uint8_t moves)
+{
+	if((*iterations) >= moves)
+	{
+		(*u_fwd) = 0;
+		(*u_back) = 0;
+		(*iterations) = 0;
+		stop_motors(0);										// Change state and stop motors
+	}
 }

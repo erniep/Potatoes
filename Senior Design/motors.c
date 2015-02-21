@@ -105,17 +105,8 @@ void fwd_pid(int32_t ufwd,int32_t uback, uint8_t dutyref)
 	mDC[1] = dutyref + ufwd;
 	mDC[2] = dutyref + uback;
 	mDC[3] = dutyref - uback;
-	uint8_t n = 0;
-	for(n=0; n<4; n++)
-	{
-		if(mDC[n] > UPPERLIM) mDC[n] = UPPERLIM;
-		else if (mDC[n] < LOWERLIM) mDC[n] = LOWERLIM;
-	}
-	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((mDC[0] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((mDC[1] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((mDC[2] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((mDC[3] * period)/100));
+	control_effort_limit(mDC);
+	setDC(mDC);
 }
 void rev_pid(int32_t ufwd,int32_t uback, uint8_t dutyref)
 {
@@ -124,55 +115,28 @@ void rev_pid(int32_t ufwd,int32_t uback, uint8_t dutyref)
 	mDC[1] = dutyref - ufwd;
 	mDC[2] = dutyref - uback;
 	mDC[3] = dutyref + uback;
-	uint8_t n = 0;
-	for(n=0; n<4; n++)
-	{
-		if(mDC[n] > UPPERLIM) mDC[n] = UPPERLIM;
-		else if (mDC[n] < LOWERLIM) mDC[n] = LOWERLIM;
-	}
-	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((mDC[0] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((mDC[1] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((mDC[2] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((mDC[3] * period)/100));
+	control_effort_limit(mDC);
+	setDC(mDC);
 }
 void tl_pid(int32_t uleft,int32_t uright, uint8_t dutyref)
-{
-	int8_t mDC[4];
-	mDC[0] = dutyref + uleft;
-	mDC[1] = dutyref - uright;
-	mDC[2] = dutyref - uleft;
-	mDC[3] = dutyref + uright;
-	uint8_t n = 0;
-	for(n=0; n<4; n++)
-	{
-		if(mDC[n] > UPPERLIM) mDC[n] = UPPERLIM;
-		else if (mDC[n] < LOWERLIM) mDC[n] = LOWERLIM;
-	}
-	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((mDC[0] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((mDC[1] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((mDC[2] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((mDC[3] * period)/100));
-}
-void tr_pid(int32_t uleft,int32_t uright, uint8_t dutyref)
 {
 	int8_t mDC[4];
 	mDC[0] = dutyref - uleft;
 	mDC[1] = dutyref + uright;
 	mDC[2] = dutyref + uleft;
 	mDC[3] = dutyref - uright;
-	uint8_t n = 0;
-	for(n=0; n<4; n++)
-	{
-		if(mDC[n] > UPPERLIM) mDC[n] = UPPERLIM;
-		else if (mDC[n] < LOWERLIM) mDC[n] = LOWERLIM;
-	}
-	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((mDC[0] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((mDC[1] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((mDC[2] * period)/100));
-	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((mDC[3] * period)/100));
+	control_effort_limit(mDC);
+	setDC(mDC);
+}
+void tr_pid(int32_t uleft,int32_t uright, uint8_t dutyref)
+{
+	int8_t mDC[4];
+	mDC[0] = dutyref + uleft;
+	mDC[1] = dutyref - uright;
+	mDC[2] = dutyref - uleft;
+	mDC[3] = dutyref + uright;
+	control_effort_limit(mDC);
+	setDC(mDC);
 }
 void fw_motors(uint8_t duty, uint8_t num_cells)
 {
@@ -361,4 +325,20 @@ void pan_rt(void)
 	uint32_t period = PWMGenPeriodGet(PWM_PAN_SERVO_BASE, PWM_GEN_PAN_SERVO);
 	PWMPulseWidthSet(PWM_PAN_SERVO_BASE, PAN_SERVO_OUT, ((DUTY_RT * period)/100));
 }
-
+void control_effort_limit(int8_t * DCmotors)
+{
+	uint8_t n = 0;
+	for(n=0; n<4; n++)
+	{
+		if(DCmotors[n] > UPPERLIM) DCmotors[n] = UPPERLIM;
+		else if (DCmotors[n] < LOWERLIM) DCmotors[n] = LOWERLIM;
+	}
+}
+void setDC(int8_t * DCmotors)
+{
+	uint32_t period = PWMGenPeriodGet(PWM_MOTOR_BASE, PWM_GEN_TOPM);
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M1_OUT, ((DCmotors[0] * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M2_OUT, ((DCmotors[1] * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M3_OUT, ((DCmotors[2] * period)/100));
+	PWMPulseWidthSet(PWM_MOTOR_BASE, M4_OUT, ((DCmotors[3] * period)/100));
+}
