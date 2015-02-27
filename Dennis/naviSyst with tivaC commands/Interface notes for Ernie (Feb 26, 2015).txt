@@ -1,0 +1,17 @@
+Feb 26, 2015
+
+-wallReadings is an existing 3 element int array.
+-callUltras() receives wallReadings as an argument. 
+-wallReadings[0], wallReadings[1], and wallReadings[2] correspond to the left, middle, and right wall sensors readings.
+
+-sendInstr() function instructs the tivaC to perform a movement function. This function must be in a header file that is included above naviSyst2.h
+-sendInstr() sends a single lower case char depending on the following commands:
+
+char:	command:
+w		Move forwards one cell
+a		Strafe left one cell
+s		Move backwards one cell
+d		Strafe right one cell
+q		Rotate counter clockwise 90 degrees
+e		Rotate clockwise 90 degrees
+r		Rotate 180 degrees
