@@ -18,7 +18,24 @@
 /* Board Header Files */
 #include "motors.h"
 #include "light_sensor.h"
-
+/*
+ * RTOS Variables
+ *
+ * HWI
+ * ISR_NAME						Interrupt number
+ *
+ * TASK
+ * TASK_NAME					Priority
+ * Robot_drive_task				2
+ *
+ * CLOCK (main clock 10ms)
+ * Clock func name				ticks
+ * lightsense_CLK				1
+ *
+ * SEMAPHORES
+ * Sema_lightsense
+ *
+ */
 /* Robot locomotion states */
 #define DRIVESTATE_IDLE				0x0
 #define DRIVESTATE_FWD				0x1

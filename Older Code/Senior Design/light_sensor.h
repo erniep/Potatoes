@@ -24,7 +24,33 @@
 #include <driverlib/timer.h>
 #include <driverlib/interrupt.h>
 #include <inc/hw_types.h>
+#include <driverlib/gpio.h>
 #include <inc/hw_gpio.h>
+/*
+ * RTOS Variables
+ *
+ * HWI
+ * ISR_NAME						Interrupt number
+ * timer2A_ISR					23
+ * timer2B_ISR					24
+ * timer3A_ISR					35
+ * timer4A_ISR					70
+ * timer4B_ISR					71
+ *
+ * TASK
+ * TASK_NAME					Priority
+ * Robot_lightsnsr_task			1
+ *
+ * CLOCK (main clock 10ms)
+ * Clock func name				ticks
+ * lightsense_CLK				1
+ *
+ * SEMAPHORES
+ * Sema_lightsense_f
+ * Sema_lightsense
+ * Sema_lightsense_calibrate
+ *
+ */
 //
 //			  Robot
 //-----------------------------
@@ -64,9 +90,8 @@
 #define fixedpoint_microsec_coeff 	1000000
 
 /* Timer periods */
-#define timer2B_prd 				65
 #define timer2A_prd 				10
 
 /* function prototypes */
-
+void sample_lightsense(void);
 #endif

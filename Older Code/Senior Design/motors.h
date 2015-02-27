@@ -21,6 +21,20 @@
 #include <driverlib/pwm.h>
 #include <driverlib/gpio.h>
 #include <driverlib/sysctl.h>
+/*
+ * RTOS Variables
+ *
+ * HWI
+ * ISR_NAME						Interrupt number
+ *
+ * TASK
+ * TASK_NAME					Priority
+ *
+ * CLOCK (main clock 10ms)
+ *
+ * SEMAPHORES
+ *
+ */
 //
 //		Robot
 //------------------
