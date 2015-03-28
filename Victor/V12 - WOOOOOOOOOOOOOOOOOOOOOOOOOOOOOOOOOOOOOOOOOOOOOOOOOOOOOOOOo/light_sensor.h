@@ -27,6 +27,8 @@
 #include <inc/hw_timer.h>
 #include <driverlib/gpio.h>
 #include <inc/hw_gpio.h>
+
+#include "drive.h"
 /*
  * RTOS Variables
  *
@@ -38,15 +40,16 @@
  * TASK
  * TASK_NAME					Priority
  * Robot_lightsnsr_task			1
+ * median_filter_task			3
  *
  * CLOCK (main clock 10ms)
  * Clock func name				ticks
- * lightsense_CLK				1
+ * lightsense_CLK				5
  *
  * SEMAPHORES
  * Sema_lightsense_f
  * Sema_lightsense
- * Sema_lightsense_calibrate
+ * Sema_lightsense_filter
  *
  */
 //
@@ -57,7 +60,6 @@
 //	   		LIGHTSNSR2
 //-----------------------------
 //
-
 /* Light Sensor Pin Values */
 #define LIGHTSNSR1_BASE				GPIO_PORTA_BASE
 #define LIGHTSNSR2_BASE				GPIO_PORTC_BASE
@@ -78,7 +80,7 @@
 #define LIGHTSNSR3A_1				GPIO_PIN_6
 #define LIGHTSNSR3A_2				GPIO_PIN_7
 #define LIGHTSNSR3B_3				GPIO_PIN_4
-#define LIGHTSNSR4A					GPIO_PIN_2 | GPIO_PIN_3 // CHANGE THIS - ACCELEROMETER STUFF
+#define LIGHTSNSR4A					GPIO_PIN_2 | GPIO_PIN_3
 #define LIGHTSNSR4B					GPIO_PIN_4
 #define LIGHTSNSR4A_1				GPIO_PIN_2
 #define LIGHTSNSR4A_2				GPIO_PIN_3
@@ -122,17 +124,18 @@
 /* Threshold values for light sensor */
 #define fixedpoint_microsec_coeff 	1000000
 #define fixedpoint_count_to_time	80
-#define MAX_PERIOD					1000
+#define MAX_PERIOD					2000
 
 /* Clock Values */
 #define Clock 80000000
 
 /* Timer periods */
 #define timer2A_prd 				10
-#define thresh3						(135 + (390-135)/2)/2//min 135, max 390
-#define thresh4                     (165 + (900-165)/2)/2//min 164, max 900
-#define thresh1 					(160 + (820-160)/2)/2//min - 160, max 820
-#define thresh2						(220 + (912-220)/2)/2// min 220, max 912
+#define thresh3						(135 + (390-135)/2)//min 135, max 390
+#define thresh4                     (165 + (900-165)/2)//min 164, max 900
+#define thresh1 					(160 + (820-160)/2)//min - 160, max 820
+#define thresh2						(220 + (912-220)/2)// min 220, max 912
 
 /* function prototypes */
+void sort_arr(uint32_t * arr);
 #endif

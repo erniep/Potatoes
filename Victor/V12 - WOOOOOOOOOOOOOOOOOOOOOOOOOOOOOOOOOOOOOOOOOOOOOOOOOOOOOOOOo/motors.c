@@ -108,20 +108,20 @@ void coast_motors(uint8_t duty)
 void fwd_pid(int32_t ufwd,int32_t uback, uint8_t dutyref)
 {
 	int32_t mDC[4];
-	mDC[0] = dutyref - ufwd;
-	mDC[1] = dutyref + ufwd;
-	mDC[2] = dutyref + uback;
-	mDC[3] = dutyref - uback;
+	mDC[0] = (int32_t)dutyref - ufwd;
+	mDC[1] = (int32_t)dutyref + ufwd;
+	mDC[2] = (int32_t)dutyref + uback;
+	mDC[3] = (int32_t)dutyref - uback;
 	control_effort_limit(mDC);
 	setDC(mDC);
 }
 void rev_pid(int32_t ufwd, int32_t uback, uint8_t dutyref)
 {
 	int32_t mDC[4];
-	mDC[0] = dutyref + ufwd;
-	mDC[1] = dutyref - ufwd;
-	mDC[2] = dutyref - uback;
-	mDC[3] = dutyref + uback;
+	mDC[0] = (int32_t)dutyref - ufwd;
+	mDC[1] = (int32_t)dutyref + ufwd;
+	mDC[2] = (int32_t)dutyref + uback;
+	mDC[3] = (int32_t)dutyref - uback;
 	control_effort_limit(mDC);
 	setDC(mDC);
 }
@@ -153,6 +153,7 @@ void fw_motors(uint8_t duty, uint8_t num_cells)
 	num_moves = num_cells;
 	// Set duty cycle
 	dutycycle = duty;
+
 	// Set periods on Motors
 	setDC_all(duty);
 
@@ -175,6 +176,7 @@ void cw_motors(uint8_t duty, uint8_t num_turns)
 	num_moves = num_turns;
 	// Set duty cycle
 	dutycycle = duty;
+
 	// Set periods on Motors
 	setDC_all(duty);
 
@@ -197,6 +199,7 @@ void ccw_motors(uint8_t duty, uint8_t num_turns)
 	num_moves = num_turns;
 	// Set duty cycle
 	dutycycle = duty;
+
 	// Set periods on Motors
 	setDC_all(duty);
 
@@ -219,6 +222,7 @@ void rv_motors(uint8_t duty, uint8_t num_cells)
 	num_moves = num_cells;
 	// Set duty cycle
 	dutycycle = duty;
+
 	// Set periods on Motors
 	setDC_all(duty);
 
@@ -239,8 +243,7 @@ void tl_motors(uint8_t duty, uint8_t num_cells)
 	drivestate = DRIVESTATE_STRAFELEFT;
 	// Set num of turns wanted
 	num_moves = num_cells;
-	// Set duty cycle
-	dutycycle = duty;
+
 	// Set periods on Motors
 	setDC_all(duty);
 
@@ -272,6 +275,38 @@ void tr_motors(uint8_t duty, uint8_t num_cells)
 	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD2_M1A);
 	//M2:REV, 2A lo, 2B hi, M3:REV, 3A lo
 	GPIOPinWrite(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A, PE2_M2B);
+	//M3:REV, 3B hi
+	GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, PA5_M3B);
+	//M4:FWD, 4A hi, 4B lo
+	GPIOPinWrite(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B, PB4_M4A);
+}
+void cw_motors_openloop(uint8_t duty)
+{
+	// Set periods on Motors
+	setDC_all(duty);
+
+	// Control Pins
+	//M1:FWD, M2:REV, M3:FWD, M4:REV
+	//M1:FWD, 1A hi, 1B lo
+	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD2_M1A);
+	//M2:REV, 2A lo, 2B hi, M3:FWD, 3A hi
+	GPIOPinWrite(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A, PE2_M2B | PE3_M3A);
+	//M3:FWD, 3B low
+	GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, 0);
+	//M4:REV, 4A lo, 4B hi
+	GPIOPinWrite(GPIO_PORTB_BASE, PB4_M4A | PB5_M4B, PB5_M4B);
+}
+void ccw_motors_openloop(uint8_t duty)
+{
+	// Set periods on Motors
+	setDC_all(duty);
+
+	// Control Pins
+	//M1:REV, M2:FWD, M3:REV, M4:FWD
+	//M1:REV, 1A lo, 1B hi
+	GPIOPinWrite(GPIO_PORTD_BASE, PD2_M1A | PD3_M1B, PD3_M1B);
+	//M2:FWD, 2A hi, 2B lo, M3:REV, 3A lo
+	GPIOPinWrite(GPIO_PORTE_BASE, PE1_M2A | PE2_M2B | PE3_M3A, PE1_M2A);
 	//M3:REV, 3B hi
 	GPIOPinWrite(GPIO_PORTA_BASE, PA5_M3B, PA5_M3B);
 	//M4:FWD, 4A hi, 4B lo

@@ -6,13 +6,15 @@
  */
 #include "light_sensor.h"
 /*
- * Global Variables
+ * This define statement turns the median filter on and off,
+ * Comment line to remove filter
  */
-uint32_t lightsnsr_thresh[4];																							// Threshold compare values
-uint32_t lightsnsr_prd_1[3];																							// Holds values for periods measured
-uint32_t lightsnsr_prd_2[3];																							// Holds values for periods measured
-uint32_t lightsnsr_prd_3[3];																							// Holds values for periods measured
-uint32_t lightsnsr_prd_4[3];																							// Holds values for periods measured
+#define MEDIAN_FILTER_ON 1
+/*
+ * Global Variables
+ */																														// Threshold compare values
+uint32_t raw_prd[NUM_ARRAYS][NUM_SENSORS][NUM_SAMPLES] = {0};															// Holds values for periods measured																			// Holds values for periods measured
+uint32_t prd[NUM_ARRAYS][NUM_SENSORS] = {0};																			// Holds values for periods filtered
 uint32_t t_0 = 0;																										// t = 0
 uint32_t t_1 = 0;																										// t = T, where T is sampling period
 uint64_t delta_t = 0;																									// Change in time placeholder
@@ -34,12 +36,6 @@ void Robot_lightsnsr_task(void)
 	HWREG(GPIO_PORTD_BASE + GPIO_O_AFSEL) &= ~0x80;
 	HWREG(GPIO_PORTD_BASE + GPIO_O_DEN) |= 0x80;
 	HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = 0;
-
-	// Load example threshold values into array later to be calibrated
-	lightsnsr_thresh[0] = thresh1;
-	lightsnsr_thresh[1] = thresh2;
-	lightsnsr_thresh[2] = thresh3;
-	lightsnsr_thresh[3] = thresh4;
 
 	// Load period values of each light sensor into reg
 	uint32_t Period = ((Clock * timer2A_prd) / fixedpoint_microsec_coeff);								// set period
@@ -89,6 +85,42 @@ void Robot_lightsnsr_task(void)
 		TimerEnable(TIMER2_BASE, TIMER_A);																				// Enable Timer2A
 	}
 }
+void median_filter_task(void)
+{
+#ifdef MEDIAN_FILTER_ON
+	uint32_t temp_arr[NUM_SAMPLES] = {0};
+	int8_t k = 0;
+#endif
+	uint8_t n = 0;
+	uint8_t m = 0;
+	while(1)
+	{
+		// Pend on semaphore - Raw Data ready
+		Semaphore_pend(Sema_lightsense_filter, BIOS_WAIT_FOREVER);
+		for(n=0; n<(NUM_ARRAYS); n++)
+		{
+			for(m=0; m<(NUM_SENSORS); m++)
+			{
+#ifdef MEDIAN_FILTER_ON																									// A preprocessor to turn on the median filter
+				memcpy(temp_arr, raw_prd[n][m], 4*NUM_SAMPLES);															// Copy Raw data into a temporary sorting array
+				sort_arr(temp_arr);																						// Sort array - If NUM_SAMPLES > 3 change this code
+				if(NUM_SAMPLES % 2 ==0) prd[n][m] = (temp_arr[NUM_SAMPLES/2] + temp_arr[NUM_SAMPLES/2 - 1])/2;
+				else prd[n][m] = temp_arr[NUM_SAMPLES/2];																// Grab median value - if NUM_SAMPLES is even change this line
+				raw_prd[n][m][2] = raw_prd[n][m][1];
+				raw_prd[n][m][1] = raw_prd[n][m][0];
+				for(k = (NUM_SAMPLES-1); k <= 0; k--)																	// Update Raw data for next iteration
+				{
+					raw_prd[n][m][k] = raw_prd[n][m][k-1];
+				}
+#else
+				prd[n][m] = raw_prd[n][m][0];
+#endif
+			}
+		}
+		// Post Semaphore - Filtered Data ready
+		Semaphore_post(Sema_lightsense);
+	}
+}
 void timer2A_ISR(void)
 {
 	t_0 = HWREG(WTIMER0_BASE + TIMER_O_TAR);																			// Grab Timer Value
@@ -100,7 +132,7 @@ void timer2A_ISR(void)
 	GPIOPinTypeGPIOInput(LIGHTSNSR4A_BASE, LIGHTSNSR4A);
 	GPIOPinTypeGPIOInput(LIGHTSNSR4B_BASE, LIGHTSNSR4B);
 }
-void gpio_A_ISR(void)
+void gpio_A_ISR(void)															// 0_0, 0_1, 0_2
 {
 	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTA_BASE + GPIO_O_MIS);					// Get interrupt mask
@@ -108,25 +140,25 @@ void gpio_A_ISR(void)
 	delta_t = t_1 - t_0;														// Find time difference
 	if(int_mask & LIGHTSNSR1_1_INT)
 	{
-		lightsnsr_prd_1[0] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_1[0] > MAX_PERIOD) lightsnsr_prd_1[0] = MAX_PERIOD;
+		raw_prd[0][0][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[0][0][0] > MAX_PERIOD) raw_prd[0][0][0] = MAX_PERIOD;
 		lightsense_flag |= BIT0;
 	}
 	if(int_mask & LIGHTSNSR1_2_INT)
 	{
-		lightsnsr_prd_1[1] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_1[1] > MAX_PERIOD) lightsnsr_prd_1[1] = MAX_PERIOD;
+		raw_prd[0][1][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[0][1][0] > MAX_PERIOD) raw_prd[0][1][0] = MAX_PERIOD;
 		lightsense_flag |= BIT1;
 	}
 	if(int_mask & LIGHTSNSR1_3_INT)
 	{
-		lightsnsr_prd_1[2] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_1[2] > MAX_PERIOD) lightsnsr_prd_1[2] = MAX_PERIOD;
+		raw_prd[0][2][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[0][2][0] > MAX_PERIOD) raw_prd[0][2][0] = MAX_PERIOD;
 		lightsense_flag |= BIT2;
 	}
-	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense);				// Check for completion
+	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense_filter);		// Check for completion
 }
-void gpio_B_ISR(void)
+void gpio_B_ISR(void)															// 3_0 and 3_1
 {
 	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTB_BASE + GPIO_O_MIS);					// Get interrupt mask
@@ -134,19 +166,19 @@ void gpio_B_ISR(void)
 	delta_t = t_1 - t_0;														// Find time difference
 	if(int_mask & LIGHTSNSR4A_1_INT) 											// Set mins/maxes for each sensor array
 	{
-		lightsnsr_prd_4[0] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_4[0] > MAX_PERIOD) lightsnsr_prd_4[0] = MAX_PERIOD;
+		raw_prd[3][0][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[3][0][0] > MAX_PERIOD) raw_prd[3][0][0] = MAX_PERIOD;
 		lightsense_flag |= BIT9;
 	}
 	if(int_mask & LIGHTSNSR4A_2_INT)
 	{
-		lightsnsr_prd_4[1] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_4[1] > MAX_PERIOD) lightsnsr_prd_4[1] = MAX_PERIOD;
+		raw_prd[3][1][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[3][1][0] > MAX_PERIOD) raw_prd[3][1][0] = MAX_PERIOD;
 		lightsense_flag |= BIT10;
 	}
-	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense);				// Check for completion
+	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense_filter);		// Check for completion
 }
-void gpio_C_ISR(void)
+void gpio_C_ISR(void)															//1_0,1_1,1_2,3_2
 {
 	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTC_BASE + GPIO_O_MIS);					// Get interrupt mask
@@ -154,31 +186,31 @@ void gpio_C_ISR(void)
 	delta_t = t_1 - t_0;														// Find time difference
 	if(int_mask & LIGHTSNSR2_1_INT)
 	{
-		lightsnsr_prd_2[0] = (delta_t / fixedpoint_count_to_time);				// Put new value into result matrix
-		if(lightsnsr_prd_2[0] > MAX_PERIOD) lightsnsr_prd_2[0] = MAX_PERIOD;
+		raw_prd[1][0][0] = (delta_t / fixedpoint_count_to_time);				// Put new value into result matrix
+		if(raw_prd[1][0][0] > MAX_PERIOD) raw_prd[1][0][0] = MAX_PERIOD;
 		lightsense_flag |= BIT3;												// Adjust completion flag
 	}																			// Repeat for rest of sensors
 	if(int_mask & LIGHTSNSR2_2_INT)
 	{
-		lightsnsr_prd_2[1] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_2[1] > MAX_PERIOD) lightsnsr_prd_2[1] = MAX_PERIOD;
+		raw_prd[1][1][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[1][1][0] > MAX_PERIOD) raw_prd[1][1][0] = MAX_PERIOD;
 		lightsense_flag |= BIT4;
 	}
 	if(int_mask & LIGHTSNSR2_3_INT)
 	{
-		lightsnsr_prd_2[2] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_2[2] > MAX_PERIOD) lightsnsr_prd_2[2] = MAX_PERIOD;
+		raw_prd[1][2][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[1][2][0] > MAX_PERIOD) raw_prd[1][2][0] = MAX_PERIOD;
 		lightsense_flag |= BIT5;
 	}
 	if(int_mask & LIGHTSNSR4B_3_INT)
 	{
-		lightsnsr_prd_4[2] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_4[2] > MAX_PERIOD) lightsnsr_prd_4[2] = MAX_PERIOD;
+		raw_prd[3][2][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[3][2][0] > MAX_PERIOD) raw_prd[3][2][0] = MAX_PERIOD;
 		lightsense_flag |= BIT11;
 	}
-	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense);				// Check for completion
+	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense_filter);		// Check for completion
 }
-void gpio_D_ISR(void)
+void gpio_D_ISR(void)															//2_0,2_1,
 {
 	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTD_BASE + GPIO_O_MIS);					// Get interrupt mask
@@ -186,19 +218,19 @@ void gpio_D_ISR(void)
 	delta_t = t_1 - t_0;														// Find time difference
 	if(int_mask & LIGHTSNSR3A_1_INT)
 	{
-		lightsnsr_prd_3[0] = (delta_t / fixedpoint_count_to_time);				// Set period values for sensor
-		if(lightsnsr_prd_3[0] > MAX_PERIOD) lightsnsr_prd_3[0] = MAX_PERIOD;
+		raw_prd[2][0][0] = (delta_t / fixedpoint_count_to_time);				// Set period values for sensor
+		if(raw_prd[2][0][0] > MAX_PERIOD) raw_prd[2][0][0] = MAX_PERIOD;
 		lightsense_flag |= BIT6;												// Set flag for completion
 	}
 	if(int_mask & LIGHTSNSR3A_2_INT)											// Repeat for each sensor
 	{
-		lightsnsr_prd_3[1] = (delta_t / fixedpoint_count_to_time);
-		if(lightsnsr_prd_3[1] > MAX_PERIOD) lightsnsr_prd_3[1] = MAX_PERIOD;
+		raw_prd[2][1][0] = (delta_t / fixedpoint_count_to_time);
+		if(raw_prd[2][1][0]> MAX_PERIOD) raw_prd[2][1][0] = MAX_PERIOD;
 		lightsense_flag |= BIT7;
 	}
-	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense);				// Check for completion
+	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense_filter);		// Check for completion
 }
-void gpio_F_ISR(void)
+void gpio_F_ISR(void)															//2_2
 {
 	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTF_BASE + GPIO_O_MIS);					// Get interrupt mask
@@ -206,13 +238,31 @@ void gpio_F_ISR(void)
 	delta_t = t_1 - t_0;														// Find time difference
 	if(int_mask & LIGHTSNSR3B_3_INT)
 	{
-		lightsnsr_prd_3[2] = (delta_t / fixedpoint_count_to_time);				// Set delta values for each sensor array
-		if(lightsnsr_prd_3[2] > MAX_PERIOD) lightsnsr_prd_3[2] = MAX_PERIOD;
+		raw_prd[2][2][0] = (delta_t / fixedpoint_count_to_time);				// Set delta values for each sensor array
+		if(raw_prd[2][2][0] > MAX_PERIOD) raw_prd[2][2][0] = MAX_PERIOD;
 		lightsense_flag |= BIT8;
 	}
-	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense);				// Check for completion
+	if(lightsense_flag == 0xFFF) Semaphore_post(Sema_lightsense_filter);		// Check for completion
 }
 void lightsense_CLK(void)
 {
 		Semaphore_post(Sema_lightsense_f);										// Post sema if needed
+}
+void sort_arr(uint32_t * arr)
+{
+	uint8_t i;
+	uint8_t j;
+	uint32_t flipflop;
+    for(i=0;i<NUM_SAMPLES;i++)															// Nested for loop to fill sample buffer with ascending values
+    {
+        for(j=i;j<NUM_SAMPLES;j++)														// start filling cell
+        {
+            if(arr[i] > arr[j])																	// If one is larger, set that cell to that value, and move on
+            {
+                flipflop=arr[i];
+                arr[i]=arr[j];
+                arr[j]=flipflop;
+            }
+        }
+    }
 }

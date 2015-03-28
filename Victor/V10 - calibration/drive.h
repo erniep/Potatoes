@@ -45,10 +45,9 @@
 #define DRIVESTATE_TURNAROUND		0x5
 #define DRIVESTATE_STRAFELEFT		0x6
 #define DRIVESTATE_STRAFERIGHT		0x7
-#define LINEDETECT_NULLS_0			0x8
-#define LINEDETECT_BLACK_0			0x9
-#define LINEDETECT_NULLS_1			0xA
-
+#define DRIVESTATE_CALIBRATE		0x8
+#define LINEDETECT_NULLS			0x9
+#define LINEDETECT_BLACK			0xA
 /*
  * PID Controller Values
  *
@@ -57,7 +56,7 @@
  * when relating to error, due to the
  * abnormally large error values.
  */
-#define KP							20
+#define KP							300
 #define KI							10000
 #define KD							10000
 
@@ -69,8 +68,11 @@
 #define LINEDETECT_K_NUM			1
 #define LINEDETECT_K_DEN_2			10//15
 #define LINEDETECT_K_NUM_2			2
-/* Black Line consecutive reads */
-#define BLK_TAPE_READ				10
+
+/* min and max indexes and constants */
+#define i_MIN						0
+#define i_MAX						1
+#define CALIBRATION_NUM_SAMP		100
 
 /* PID U limits */
 #define U_MAX						100
@@ -103,6 +105,26 @@ uint32_t lightsense_thresh_check(uint32_t * raw_data, uint32_t * thresh, uint8_t
 //! current reading
 //
 //*****************************************************************************
+void calibration_minmax(uint32_t * minmax_hold, uint32_t * sample);
+//*****************************************************************************
+//
+//! calibration_minmax - checks if sample is greater than max of samples in
+//! argument minmax_hold, or less than, and stores the value
+//!
+//! \param minmax_hold - The measured holder for respective mins/maxes
+//!
+//! \param sample - values sampled via line sensors
+//
+//*****************************************************************************
+void calibrate_lightsense(void);
+//*****************************************************************************
+//
+//! calibrate_lightsense - calibrates the lightsensor by changing states
+//!
+//! \return none
+//
+//*****************************************************************************
+
 int abs(int32_t val);
 //*****************************************************************************
 //

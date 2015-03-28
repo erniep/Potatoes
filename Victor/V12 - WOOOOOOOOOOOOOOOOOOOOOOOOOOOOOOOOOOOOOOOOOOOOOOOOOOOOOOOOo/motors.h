@@ -353,4 +353,28 @@ void setDC_all(uint8_t duty);
 //! \return none
 //
 //*****************************************************************************
+void cw_motors_openloop(uint8_t duty);
+//*****************************************************************************
+//
+//! Open loop clockwise turn
+//!
+//! \param ui8duty is the intended duty cycle
+//!
+//! This function turns the robotclockwise
+//!
+//! \return none
+//
+//*****************************************************************************
+void ccw_motors_openloop(uint8_t duty);
+//*****************************************************************************
+//
+//! Open loop Counter clockwise turn
+//!
+//! \param ui8duty is the intended duty cycle
+//!
+//! This function turns the robot counter clockwise
+//!
+//! \return none
+//
+//*****************************************************************************
 #endif /* MOTORS_H_ */

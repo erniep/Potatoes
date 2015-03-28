@@ -8,10 +8,9 @@
 /* Global Variables */
 uint8_t dutycycle = 0;											// Initial Duty Cycle
 uint8_t drivestate = 0;											// Drive Task State
-uint8_t linedetect_state = LINEDETECT_NULLS_0;					// Line detection state counter
+uint8_t linedetect_state = LINEDETECT_NULLS;					// Line detection state counter
 /* Externs */
 extern uint8_t num_moves;										// Num moves for current state
-extern uint32_t lightsnsr_thresh[4];							// Threshold compare values
 extern uint32_t lightsnsr_prd_1[3];								// Holds values for periods measured
 extern uint32_t lightsnsr_prd_2[3];								// Holds values for periods measured
 extern uint32_t lightsnsr_prd_3[3];								// Holds values for periods measured
@@ -32,10 +31,19 @@ void Robot_drive_task(void)
 	uint32_t lightsnsr_val_2;
 	uint32_t lightsnsr_val_3;
 	uint32_t lightsnsr_val_4;
+	uint32_t lightsnsr_thresh[4];								// Threshold compare values
+	uint8_t calibrationstate = 0;								// Calibration state machine holder
+	uint16_t sample_counter = 0;								// calibration sample counter
+	uint32_t calibration_minmax1[2] = {0,0};					// Array to hold min/maxes for calibration
+	uint32_t calibration_minmax2[2] = {0,0};
+	uint32_t calibration_minmax3[2] = {0,0};
+	uint32_t calibration_minmax4[2] = {0,0};
 
-	//rv_motors(40,1);
-	tr_motors(50, 1); //Test :)
+	fw_motors(50, 1); //Test :)
 	//servo_tangent();
+
+	// Calibrate line sensors
+	//calibrate_lightsense();
 
 	while(TRUE)
 	{
@@ -53,6 +61,39 @@ void Robot_drive_task(void)
 		PIDError(lightsnsr_prd_4, e3);
 		switch(drivestate)									// State machine
 		{
+		case DRIVESTATE_CALIBRATE:
+			sample_counter++;								// Increment sample counter
+			calibration_minmax(calibration_minmax1, lightsnsr_prd_1);
+			calibration_minmax(calibration_minmax2, lightsnsr_prd_2);
+			calibration_minmax(calibration_minmax3, lightsnsr_prd_3);
+			calibration_minmax(calibration_minmax4, lightsnsr_prd_4);
+			switch(calibrationstate)
+			{
+			case 0:
+				cw_motors_openloop(40);
+				if(sample_counter >= CALIBRATION_NUM_SAMP) calibrationstate++;
+				break;
+			case 1:
+				ccw_motors_openloop(40);
+				if(sample_counter >= (3*CALIBRATION_NUM_SAMP)) calibrationstate++;
+				break;
+			case 2:
+				cw_motors_openloop(40);
+				if(sample_counter >= (4*CALIBRATION_NUM_SAMP))
+				{
+					// Update calibrated threshold values
+					calibrationstate = 0;					// Reset state counter
+					sample_counter = 0;						// Reset sample counter
+					stop_motors(0);							// Change state and stop motors
+					// Update calibrated threshold values
+					lightsnsr_thresh[0] = (calibration_minmax1[i_MIN] + (calibration_minmax1[i_MAX] - calibration_minmax1[i_MIN])/2);
+					lightsnsr_thresh[1] = (calibration_minmax2[i_MIN] + (calibration_minmax2[i_MAX] - calibration_minmax2[i_MIN])/2);
+					lightsnsr_thresh[2] = (calibration_minmax3[i_MIN] + (calibration_minmax3[i_MAX] - calibration_minmax3[i_MIN])/2);
+					lightsnsr_thresh[3] = (calibration_minmax4[i_MIN] + (calibration_minmax4[i_MAX] - calibration_minmax4[i_MIN])/2);
+				}
+				break;
+			}
+			break;
 		case DRIVESTATE_IDLE:
 			//Park state needs to be done
 			// Do nothing :)
@@ -115,6 +156,21 @@ int32_t PIDController(int16_t * err, int32_t u)
 	if(mag_u >= U_MAX) u = (u * U_MAX) / mag_u;
 	return result;
 }
+void calibration_minmax(uint32_t * minmax_hold, uint32_t * sample)
+{
+	// Check mins
+	if((minmax_hold[i_MIN] == 0) | (sample[0] < minmax_hold[i_MIN])) minmax_hold[i_MIN] = sample[0];
+	if((minmax_hold[i_MIN] == 0) | (sample[1] < minmax_hold[i_MIN])) minmax_hold[i_MIN] = sample[1];
+	if((minmax_hold[i_MIN] == 0) | (sample[2] < minmax_hold[i_MIN])) minmax_hold[i_MIN] = sample[2];
+	// Check maxes
+	if(sample[0] > minmax_hold[i_MAX]) minmax_hold[i_MAX] = sample[0];
+	if(sample[1] > minmax_hold[i_MAX]) minmax_hold[i_MAX] = sample[1];
+	if(sample[2] > minmax_hold[i_MAX]) minmax_hold[i_MAX] = sample[2];
+}
+void calibrate_lightsense(void)
+{
+	drivestate = DRIVESTATE_CALIBRATE;
+}
 /*
  * LINE DETECTION HELPER FUNCTIONS
  */
@@ -122,11 +178,11 @@ void linedetection(uint32_t val_1, uint32_t val_2, uint16_t * reads, uint8_t * i
 {
 	switch(linedetect_state)
 	{
-	case LINEDETECT_NULLS_0:
+	case LINEDETECT_NULLS:
 		if((val_1==0) & (val_2==0)) reads[0]++;
-		else linedetect_state = LINEDETECT_BLACK_0;
+		else linedetect_state = LINEDETECT_BLACK;
 		break;
-	case LINEDETECT_BLACK_0:
+	case LINEDETECT_BLACK:
 		if(val_1 | val_2)
 		{
 			reads[1]++;
@@ -142,13 +198,13 @@ void linedetection(uint32_t val_1, uint32_t val_2, uint16_t * reads, uint8_t * i
 			{
 				// If the sensor did not read a null first, go back to first state
 				// This is a control for if the robot begins on a black line
-				linedetect_state = LINEDETECT_NULLS_0;
+				linedetect_state = LINEDETECT_NULLS;
 				clearReadCNT(reads);
 			}
 		}
 		else
 		{
-			linedetect_state = LINEDETECT_NULLS_0;
+			linedetect_state = LINEDETECT_NULLS;
 			clearReadCNT(reads);
 		}
 		break;
@@ -158,12 +214,12 @@ void intersectiondetect(uint32_t * lightsense_vals, uint16_t * reads, uint8_t * 
 {
 	switch(linedetect_state)
 	{
-	case LINEDETECT_NULLS_0:
+	case LINEDETECT_NULLS:
 		//if((lightsense_vals[0]==0) & (lightsense_vals[1]==0) & (lightsense_vals[2]==0) & (lightsense_vals[3]==0)) reads[0]++;
 		if((lightsense_vals[0]==0)) reads[0]++;
-		else linedetect_state = LINEDETECT_BLACK_0;
+		else linedetect_state = LINEDETECT_BLACK;
 		break;
-	case LINEDETECT_BLACK_0:
+	case LINEDETECT_BLACK:
 		if(lightsense_vals[0])
 		//if(lightsense_vals[0] | (lightsense_vals[1] | lightsense_vals[2]) | lightsense_vals[3])
 		{
@@ -180,13 +236,13 @@ void intersectiondetect(uint32_t * lightsense_vals, uint16_t * reads, uint8_t * 
 			{
 				// If the sensor did not read a null first, go back to first state
 				// This is a control for if the robot begins on a black line
-				linedetect_state = LINEDETECT_NULLS_0;
+				linedetect_state = LINEDETECT_NULLS;
 				clearReadCNT(reads);
 			}
 		}
 		else
 		{
-			linedetect_state = LINEDETECT_NULLS_0;
+			linedetect_state = LINEDETECT_NULLS;
 			clearReadCNT(reads);
 		}
 		break;
