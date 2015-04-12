@@ -1,0 +1,6 @@
+~  _ _ _   _ _   _ _ _   _ _ _ _   _ _ _
+   length  addr   cmd     args     chksm
+
+1     3     2      3       -        3
+
+12 + args
