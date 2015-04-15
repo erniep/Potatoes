@@ -115,7 +115,7 @@
 /* Threshold values for light sensor */
 #define fixedpoint_microsec_coeff 	1000000
 #define fixedpoint_count_to_time	80
-#define MAX_PERIOD					1750               // Saturates the max reading for each sensor
+#define MAX_PERIOD					2000               // Saturates the max reading for each sensor
 
 /* Clock Values */
 #define Clock 						80000000
