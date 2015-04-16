@@ -116,20 +116,20 @@ void coast_motors(uint8_t duty)
 void fwd_pid(int32_t ufwd,int32_t uback, uint8_t dutyref)
 {
 	int32_t mDC[4];
-	mDC[0] = (int32_t)dutyref - ufwd;
-	mDC[1] = (int32_t)dutyref + ufwd;
-	mDC[2] = (int32_t)dutyref + uback;
-	mDC[3] = (int32_t)dutyref - uback;
+	mDC[0] = (int32_t)dutyref + ufwd;
+	mDC[1] = (int32_t)dutyref - ufwd;
+	mDC[2] = (int32_t)dutyref - uback;
+	mDC[3] = (int32_t)dutyref + uback;
 	control_effort_limit(mDC);
 	setDC(mDC);
 }
 void rev_pid(int32_t ufwd, int32_t uback, uint8_t dutyref)
 {
 	int32_t mDC[4];
-	mDC[0] = (int32_t)dutyref + ufwd;
-	mDC[1] = (int32_t)dutyref - ufwd;
-	mDC[2] = (int32_t)dutyref - uback;
-	mDC[3] = (int32_t)dutyref + uback;
+	mDC[0] = (int32_t)dutyref - ufwd;
+	mDC[1] = (int32_t)dutyref + ufwd;
+	mDC[2] = (int32_t)dutyref + uback;
+	mDC[3] = (int32_t)dutyref - uback;
 	control_effort_limit(mDC);
 	setDC(mDC);
 }

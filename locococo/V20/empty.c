@@ -72,7 +72,7 @@ int main(void)
 {
     /* Call board init functions */
     Board_initGeneral();
-    Board_initGPIO();
+    //Board_initGPIO();
     // Board_initDMA();
     // Board_initI2C();
     // Board_initSPI();

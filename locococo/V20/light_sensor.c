@@ -128,6 +128,10 @@ void Robot_lightsnsr_task(void)
 		timeout = 0;
 		lightsense_flag = 0;
 
+		// Update period
+		TimerDisable(WTIMER0_BASE, TIMER_A);
+		Period = ((Clock / fixedpoint_microsec_coeff)* max_period);
+		TimerLoadSet(WTIMER0_BASE, TIMER_A, (uint32_t)Period -1);
 		TimerEnable(TIMER2_BASE, TIMER_A);																				// Start charging line sensors
 	}
 }
@@ -290,8 +294,6 @@ void lightsense_CLK(void)
 {
 	if(lightsensor_sample)
 	{
-		uint32_t Period = ((Clock / fixedpoint_microsec_coeff)* max_period);
-		TimerLoadSet(WTIMER0_BASE, TIMER_A, (uint32_t)Period -1);
 		Semaphore_post(Sema_lightsense_f);									// Post sema for sampling
 	}
 }

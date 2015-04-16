@@ -53,8 +53,8 @@ void Robot_drive_task(void)
 #ifdef TESTMAZE
 	uint8_t flag = 1;
 	int8_t test2 = 0;
-	uint8_t testDuty = 85;
-	uint8_t testDuty2 = 75;
+	uint8_t testDuty = 70;
+	uint8_t testDuty2 = 55;
 	// Calibrate line sensors
 	Calibrate_Sensors();
 #endif
@@ -126,8 +126,8 @@ void Robot_drive_task(void)
 #endif
 
 #ifdef TESTFWBK
-			if(testDuty<55) flag = 1;
-			if(testDuty>95) flag = 0;
+			if(testDuty<45) flag = 1;
+			if(testDuty>75) flag = 0;
 			if(flag) testDuty+=10;
 			else testDuty-=10;
 
@@ -228,7 +228,7 @@ void PIDError(uint32_t periods[NUM_ARRAYS][NUM_SENSORS], int16_t error[NUM_ARRAY
 		error[n][2] = error[n][1];
 		error[n][1] = error[n][0];
 		// Take weighted average of readings
-		uint32_t feedback = (0 * periods[n][0] + 100 * periods[n][1] + 200 * periods[n][2])/(periods[n][0] + periods[n][1] + periods[n][2]);
+		uint32_t feedback = (0 * periods[n][0] + WEIGHT * periods[n][1] + (2 * WEIGHT) * periods[n][2])/(periods[n][0] + periods[n][1] + periods[n][2]);
 		uint32_t on_line_thresh = (CALIBRATIONSF_NUM * (minmax[n][0][i_MIN] + minmax[n][1][i_MIN] + minmax[n][2][i_MIN]))/CALIBRATIONSF_DEN;
 		if((periods[n][0] + periods[n][1] + periods[n][2]) < on_line_thresh)// Check if we are too far left or right
 		{
@@ -266,7 +266,7 @@ void Calibrate_Sensors(void)
 	max_period = MAX_PERIOD_CALIBRATE;	// Set max period of sampling higher
 	lightsensor_sample = 0;				// Turn off lightsense mode
 	calibrate_sample = 1;				// turn on calibration mode
-	filter_en = 0;						// Turn off filter for calibration
+	filter_en = 1;						// Turn on filter for calibration
 	filter_order = NUM_SAMPLES_CALIBRATE;// Set filter order
 	drivestate = DRIVESTATE_CALIBRATE;
 }

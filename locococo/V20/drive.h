@@ -66,6 +66,7 @@
 #define KP							2
 #define KI							100
 #define KD							10000//1000
+#define WEIGHT						100
 
 #define MAX_PERIOD_CALIBRATE		5000
 
@@ -81,7 +82,7 @@
 
 /*	Safety Factor Gains	- Need to be turned to perfection for all DC's*/
 // Higher value is hiher number of nulls ignored
-#define	NULL_READS					325//325			// Good dont change
+#define	NULL_READS					375//325			// Good dont change
 #define NULL_READS2					90			// Increase if it detects too many intersections, decrease if ignoring intersections - CHANGE THIS LAST, its pretty good
 // Lower value counts less black lines
 #define LINEDETECT_K_NUM			0			// For Horizontal checks - dont fuck with
@@ -90,14 +91,14 @@
 #define LINEDETECT_K_DEN_2			100			// Increase if its not detecting turns, decrease if detecting too many
 #define LINEDETECT_K_NUM_3			0			// For Slowing down
 #define LINEDETECT_K_DEN_3			200			// Increase if it does slow down enough, and decrease if it is slowing down too early
-#define SAMP_PRD					5 //ms		// Sampling frequency, defined in config file
+#define SAMP_PRD					3 //ms		// Sampling frequency, defined in config file
 #define SAMP_PRD_CALIBRATE			10
 
 /* Ramp down/up constants and tunables */
-#define DELTA_T_CNST				15000//15000// The target change in time for the slowdown period as a func of DC
-#define TARGET_DC					25			// Ending duty cycle after slowdown
+#define DELTA_T_CNST				12500//15000// The target change in time for the slowdown period as a func of DC
+#define TARGET_DC					30			// Ending duty cycle after slowdown
 #define FIXPNTCF					1000000		// Fixed point math coffactor
-#define RAMPUPCF					1			// A higher number represents a slower rampup speed
+#define RAMPUPCF					2			// A higher number represents a slower rampup speed
 
 /* min and max indexes and constants */
 #define i_MIN						0
