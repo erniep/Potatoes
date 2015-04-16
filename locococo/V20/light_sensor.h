@@ -16,6 +16,7 @@
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Semaphore.h>
+#include <ti/sysbios/knl/Swi.h>
 
 /* Board Header files */
 #include "motors.h"

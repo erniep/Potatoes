@@ -11,14 +11,14 @@
 uint32_t raw_prd[NUM_ARRAYS][NUM_SENSORS][NUM_SAMPLES] = {0};															// Holds values for periods measured																			// Holds values for periods measured
 uint32_t prd[NUM_ARRAYS][NUM_SENSORS] = {0};																			// Holds values for periods filtered
 uint32_t t_0 = 0;																										// t = 0
-uint32_t t_1 = 0;																										// t = T, where T is sampling period
-uint32_t delta_t = 0;																									// Change in time placeholder
+uint32_t delta_t[10] = {0};																									// Change in time placeholder
 uint16_t lightsense_flag = 0;																							// Interrupt mask
 uint16_t max_period = MAX_PERIOD;																								// Max period measured
 uint8_t lightsensor_sample = 0;																							// Light sensor sample en
 uint8_t calibrate_sample = 0;																							// Calibrate routine en
 uint8_t filter_en = 0;																									// Filter turn on flag
 uint8_t filter_order = NUM_SAMPLES;
+uint8_t timeout = 0;
 
 void median_filter_task(void)
 {
@@ -85,6 +85,8 @@ void Robot_lightsnsr_task(void)
 	IntEnable(INT_WTIMER0A);
 	TimerIntEnable(WTIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
+	Hwi_enableInterrupt(INT_GPIOA | INT_GPIOB | INT_GPIOC | INT_GPIOD);
+
 	// Set interrupt type to falling edge (consult discrete interrupts in future)
 	GPIOIntTypeSet(LIGHTSNSR1_BASE, LIGHTSNSR1, GPIO_FALLING_EDGE);
 	GPIOIntTypeSet(LIGHTSNSR2_BASE, LIGHTSNSR2, GPIO_FALLING_EDGE);
@@ -122,6 +124,10 @@ void Robot_lightsnsr_task(void)
 		GPIOPinWrite(LIGHTSNSR5_BASE, LIGHTSNSR5, LIGHTSNSR5);
 		GPIOPinWrite(LIGHTSNSR6_BASE, LIGHTSNSR6, LIGHTSNSR6);
 
+		// Reset timeout and sensor flag
+		timeout = 0;
+		lightsense_flag = 0;
+
 		TimerEnable(TIMER2_BASE, TIMER_A);																				// Start charging line sensors
 	}
 }
@@ -129,10 +135,7 @@ void timer2A_ISR(void)
 {
 	TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 	// Re-enable interrupts for timeout process
-	IntEnable(INT_GPIOA);
-	IntEnable(INT_GPIOB);
-	IntEnable(INT_GPIOC);
-	IntEnable(INT_GPIOD);
+	//Hwi_enableInterrupt(INT_GPIOA | INT_GPIOB | INT_GPIOC | INT_GPIOD);
 	GPIOPinTypeGPIOInput(LIGHTSNSR1_BASE, LIGHTSNSR1);																	// Set pins to input
 	GPIOPinTypeGPIOInput(LIGHTSNSR2_BASE, LIGHTSNSR2);
 	GPIODirModeSet(LIGHTSNSR3_BASE, LIGHTSNSR3, GPIO_DIR_MODE_IN);
@@ -142,107 +145,132 @@ void timer2A_ISR(void)
 	TimerEnable(WTIMER0_BASE, TIMER_A);																					// Start timeout timer
 	t_0 = HWREG(WTIMER0_BASE + TIMER_O_TAR);																			// Grab Timer Value
 }
-void gpio_A_ISR(void)													// 0_0, 0_1, 0_2
+void gpio_A_ISR(void)															// 0_0, 0_1, 0_2
 {
-	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTA_BASE + GPIO_O_MIS);					// Get interrupt mask
 	HWREG(GPIO_PORTA_BASE + GPIO_O_ICR) = int_mask;								// Clear Interrupts
-	delta_t = t_1 - t_0;														// Find time difference
+	uint32_t t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);							// Grab timer value 2
 	// Grab raw values as well as well as raise a flag
 	if(int_mask & LIGHTSNSR1_1_INT)
 	{
-		raw_prd[0][0][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[0] = t_1 - t_0;
 		lightsense_flag |= BIT0;
 	}
 	if(int_mask & LIGHTSNSR1_2_INT)
 	{
-		raw_prd[0][1][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[1] = t_1 - t_0;
 		lightsense_flag |= BIT1;
 	}
 	if(int_mask & LIGHTSNSR1_3_INT)
 	{
-		raw_prd[0][2][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[2] = t_1 - t_0;
 		lightsense_flag |= BIT2;
 	}
-	if(lightsense_flag == 0x3FF) Semaphore_post(Sema_lightsense_filter);
+	if((lightsense_flag & (BIT0|BIT1|BIT2)) == (BIT0|BIT1|BIT2)) Swi_post(GPIOASWI);
 }
-void gpio_B_ISR(void)													// 3_1, 5_1
+void gpio_B_ISR(void)															// 3_1, 5_1
 {
-	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
+	uint32_t t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);							// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTB_BASE + GPIO_O_MIS);					// Get interrupt mask
 	HWREG(GPIO_PORTB_BASE + GPIO_O_ICR) = int_mask;								// Clear Interrupts
-	delta_t = t_1 - t_0;														// Find time difference
 	// Grab raw values as well as well as raise a flag
 	if(int_mask & LIGHTSNSR4_INT)
 	{
-		raw_prd[3][1][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[3] = t_1 - t_0;
 		lightsense_flag |= BIT3;
 	}
 	if(int_mask & LIGHTSNSR6_INT)
 	{
-		raw_prd[5][1][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[4] = t_1 - t_0;
 		lightsense_flag |= BIT4;
 	}
-	if(lightsense_flag == 0x3FF) Semaphore_post(Sema_lightsense_filter);
+	if(lightsense_flag & ((BIT3|BIT4) == (BIT3|BIT4))) Swi_post(GPIOBSWI);
 }
-void gpio_C_ISR(void)													//1_0,1_1,1_2
+void gpio_C_ISR(void)															//1_0,1_1,1_2
 {
-	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
+	uint32_t t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);							// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTC_BASE + GPIO_O_MIS);					// Get interrupt mask
 	HWREG(GPIO_PORTC_BASE + GPIO_O_ICR) = int_mask;								// Clear Interrupts
-	delta_t = t_1 - t_0;														// Find time difference
 	// Grab raw values as well as well as raise a flag
 	if(int_mask & LIGHTSNSR2_1_INT)
 	{
-		raw_prd[1][0][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[5] = t_1 - t_0;
 		lightsense_flag |= BIT5;
 	}
 	if(int_mask & LIGHTSNSR2_2_INT)
 	{
-		raw_prd[1][1][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[6] = t_1 - t_0;
 		lightsense_flag |= BIT6;
 	}
 	if(int_mask & LIGHTSNSR2_3_INT)
 	{
-		raw_prd[1][2][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[7] = t_1 - t_0;
 		lightsense_flag |= BIT7;
 	}
-	if(lightsense_flag == 0x3FF) Semaphore_post(Sema_lightsense_filter);
+	if((lightsense_flag & (BIT5|BIT6|BIT7)) == (BIT5|BIT6|BIT7)) Swi_post(GPIOCSWI);
 }
 void gpio_D_ISR(void)															// 2_1, 4_1
 {
-	t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);									// Grab timer value 2
+	uint32_t t_1 = HWREG(WTIMER0_BASE + TIMER_O_TAR);							// Grab timer value 2
 	uint32_t int_mask = HWREG(GPIO_PORTD_BASE + GPIO_O_MIS);					// Get interrupt mask
 	HWREG(GPIO_PORTD_BASE + GPIO_O_ICR) = int_mask;								// Clear Interrupts
-	delta_t = t_1 - t_0;														// Find time difference
 	// Grab raw values as well as well as raise a flag
 	if(int_mask & LIGHTSNSR3_INT)
 	{
-		raw_prd[2][1][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[8] = t_1 - t_0;
 		lightsense_flag |= BIT8;
 	}
 	if(int_mask & LIGHTSNSR5_INT)
 	{
-		raw_prd[4][1][0] = (delta_t / fixedpoint_count_to_time);
+		delta_t[9] = t_1 - t_0;
 		lightsense_flag |= BIT9;
 	}
-	if(lightsense_flag == 0x3FF) Semaphore_post(Sema_lightsense_filter);
+	if((lightsense_flag & (BIT8|BIT9)) == (BIT8|BIT9)) Swi_post(GPIODSWI);
+}
+void gpio_A_SWI(void)
+{
+	if(!timeout)
+	{
+		raw_prd[0][0][0] = (delta_t[0] / fixedpoint_count_to_time);
+		raw_prd[0][1][0] = (delta_t[1] / fixedpoint_count_to_time);
+		raw_prd[0][2][0] = (delta_t[2] / fixedpoint_count_to_time);
+		if(lightsense_flag == 0x3FF) Semaphore_post(Sema_lightsense_filter);
+	}
+}
+void gpio_B_SWI(void)
+{
+	if(!timeout)
+	{
+		raw_prd[3][1][0] = (delta_t[3] / fixedpoint_count_to_time);
+		raw_prd[5][1][0] = (delta_t[4] / fixedpoint_count_to_time);
+		if(lightsense_flag == 0x3FF) Semaphore_post(Sema_lightsense_filter);
+	}
+}
+void gpio_C_SWI(void)
+{
+	if(!timeout)
+	{
+		raw_prd[1][0][0] = (delta_t[5] / fixedpoint_count_to_time);
+		raw_prd[1][1][0] = (delta_t[6] / fixedpoint_count_to_time);
+		raw_prd[1][2][0] = (delta_t[7] / fixedpoint_count_to_time);
+		if(lightsense_flag == 0x3FF) Semaphore_post(Sema_lightsense_filter);
+	}
+
+}
+void gpio_D_SWI(void)
+{
+	if(!timeout)
+	{
+		raw_prd[2][1][0] = (delta_t[8] / fixedpoint_count_to_time);
+		raw_prd[4][1][0] = (delta_t[9] / fixedpoint_count_to_time);
+		if(lightsense_flag == 0x3FF) Semaphore_post(Sema_lightsense_filter);
+	}
 }
 void Wtimer0A_ISR(void)
 {
 	TimerIntClear(WTIMER0_BASE, TIMER_TIMA_TIMEOUT);							// Clear current interrupt
-	// Disable interrupts due to execution of our timeout interrupt (Wtimer0A)
-	IntDisable(INT_GPIOA);
-	IntDisable(INT_GPIOB);
-	IntDisable(INT_GPIOC);
-	IntDisable(INT_GPIOD);
-	// Clear any pending interrupts from prev. timeout
-	GPIOIntClear(LIGHTSNSR1_BASE, LIGHTSNSR1_INT);
-	GPIOIntClear(LIGHTSNSR2_BASE, LIGHTSNSR2_INT);
-	GPIOIntClear(LIGHTSNSR3_BASE, LIGHTSNSR3_INT);
-	GPIOIntClear(LIGHTSNSR4_BASE, LIGHTSNSR4_INT);
-	GPIOIntClear(LIGHTSNSR5_BASE, LIGHTSNSR5_INT);
-	GPIOIntClear(LIGHTSNSR6_BASE, LIGHTSNSR6_INT);
+	// Enable timeout flag
+	timeout = 1;
 	// Set values for sensors that timed out
 	if(!(lightsense_flag & BIT0)) raw_prd[0][0][0] = max_period;
 	if(!(lightsense_flag & BIT1)) raw_prd[0][1][0] = max_period;
@@ -262,18 +290,18 @@ void lightsense_CLK(void)
 {
 	if(lightsensor_sample)
 	{
-		Semaphore_post(Sema_lightsense_f);									// Post sema for sampling
 		uint32_t Period = ((Clock / fixedpoint_microsec_coeff)* max_period);
 		TimerLoadSet(WTIMER0_BASE, TIMER_A, (uint32_t)Period -1);
+		Semaphore_post(Sema_lightsense_f);									// Post sema for sampling
 	}
 }
 void calibrate_CLK(void)
 {
 	if(calibrate_sample)
 	{
-		Semaphore_post(Sema_lightsense_f);										// Post sema for sampling
 		uint32_t Period = ((Clock / fixedpoint_microsec_coeff)* max_period);
 		TimerLoadSet(WTIMER0_BASE, TIMER_A, (uint32_t)Period -1);
+		Semaphore_post(Sema_lightsense_f);										// Post sema for sampling
 	}
 }
 void sort_arr(uint32_t * arr)

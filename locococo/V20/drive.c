@@ -71,15 +71,15 @@ void Robot_drive_task(void)
 			ramp_up_counter = 0;
 			front_detect_state = FRONTLINEDETECT_NULLS;										// Reset state counter
 #ifdef TESTMAZE
-		if(testDuty2<55) flag = 1;
-		if(testDuty2>95) flag = 0;
+		if(testDuty2<69) flag = 1;
+		if(testDuty2>71) flag = 0;
 		if(flag)
 			{
-				testDuty2+=10; testDuty+=10;
+				testDuty2+=1; testDuty+=1;
 			}
 		else
 			{
-				testDuty-=10; testDuty2-=10;
+				testDuty-=1; testDuty2-=1;
 			}
 		switch (test2)
 		{
@@ -210,8 +210,6 @@ void Robot_drive_task(void)
 					calibrationstate=0;
 					// Update calibrated threshold values
 					ThresholdApproximation(lightsnsr_thresh, calibration_minmax);
-					lightsensor_sample = 1;				// Turn off lightsense mode
-					calibrate_sample = 0;				// turn on calibration mode
 				}
 				break;
 			}
@@ -268,8 +266,8 @@ void Calibrate_Sensors(void)
 	max_period = MAX_PERIOD_CALIBRATE;	// Set max period of sampling higher
 	lightsensor_sample = 0;				// Turn off lightsense mode
 	calibrate_sample = 1;				// turn on calibration mode
-	//filter_en = 0;						// Turn off filter for calibration
-	filter_order = NUM_SAMPLES_CALIBRATE;			// Set filter order
+	filter_en = 0;						// Turn off filter for calibration
+	filter_order = NUM_SAMPLES_CALIBRATE;// Set filter order
 	drivestate = DRIVESTATE_CALIBRATE;
 }
 /*

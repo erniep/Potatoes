@@ -71,7 +71,7 @@
 
 /*	Filter for line sensors */
 #define NUM_SAMPLES					5// Filter window width - Increase if you think data is noisy
-#define NUM_SAMPLES_CALIBRATE		3
+#define NUM_SAMPLES_CALIBRATE		2
 
 /* Lightsensor PID Reference */
 #define LIGHTSENSEREF				100			// Reference to the light sensor following
@@ -85,9 +85,9 @@
 #define NULL_READS2					90			// Increase if it detects too many intersections, decrease if ignoring intersections - CHANGE THIS LAST, its pretty good
 // Lower value counts less black lines
 #define LINEDETECT_K_NUM			0			// For Horizontal checks - dont fuck with
-#define LINEDETECT_K_DEN			200			// Increase if not detecting intersecting lines, decrease vice versa
+#define LINEDETECT_K_DEN			24			// Increase if not detecting intersecting lines, decrease vice versa
 #define LINEDETECT_K_NUM_2			0			// DONT FUCK WITH
-#define LINEDETECT_K_DEN_2			200			// Increase if its not detecting turns, decrease if detecting too many
+#define LINEDETECT_K_DEN_2			100			// Increase if its not detecting turns, decrease if detecting too many
 #define LINEDETECT_K_NUM_3			0			// For Slowing down
 #define LINEDETECT_K_DEN_3			200			// Increase if it does slow down enough, and decrease if it is slowing down too early
 #define SAMP_PRD					5 //ms		// Sampling frequency, defined in config file
